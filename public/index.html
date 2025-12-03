@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ionfiltra | Pulse Jet Bag Filter Monitoring</title>
+    
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Marked for Markdown parsing in AI chat -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { DEFAULT: '#0ea5e9', 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 900: '#0c4a6e' },
+                        slate: { 850: '#151f32', 900: '#0f172a' },
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; transition: background-color 0.3s, color 0.3s; }
+        
+        /* Theme Transitions */
+        .theme-transition { transition: all 0.3s ease-in-out; }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .dark ::-webkit-scrollbar-thumb { background: #334155; }
+        
+        /* Glass/Card Effects */
+        .card-base {
+            @apply bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-sm rounded-xl;
+        }
+        
+        /* AI Chat Bubble Animation */
+        @keyframes floatIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .msg-anim { animation: floatIn 0.3s ease-out forwards; }
+
+        /* Loader */
+        .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #0ea5e9; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Login Overlay */
+        .login-overlay { position: fixed; inset: 0; z-index: 100; background-color: inherit; }
+        
+        /* Chat Widget */
+        .chat-widget { position: fixed; bottom: 2rem; right: 2rem; z-index: 50; }
+        .chat-window { position: absolute; bottom: 4rem; right: 0; width: 350px; max-height: 500px; display: flex; flex-direction: column; opacity: 0; transform: translateY(20px); pointer-events: none; transition: all 0.3s ease; }
+        .chat-window.open { opacity: 1; transform: translateY(0); pointer-events: all; }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-slate-900 text-slate-800 dark:text-gray-100 theme-transition overflow-hidden h-screen flex">
+
+    <!-- VIEW: LOGIN -->
+    <section id="login-view" class="login-overlay flex items-center justify-center p-4 bg-gray-50 dark:bg-slate-900 transition-opacity duration-500">
+        
+        <!-- Theme Toggle on Login Screen -->
+        <div class="absolute top-6 right-6 z-20">
+            <button onclick="toggleTheme()" class="p-2 rounded-full bg-white dark:bg-slate-800 shadow-md border border-gray-200 dark:border-slate-700 text-gray-500 dark:text-yellow-400 hover:scale-110 transition-transform">
+                <i id="theme-icon-login" class="ph ph-moon text-xl"></i>
+            </button>
+        </div>
+
+        <div class="w-full max-w-md bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-700 relative overflow-hidden">
+            <!-- Decorative BG blur -->
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-primary-500/20 rounded-full blur-3xl"></div>
+            <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-purple-500/20 rounded-full blur-3xl"></div>
+
+            <div class="text-center mb-8 relative z-10">
+                <div class="flex justify-center mb-6">
+                    <img src="Ionfiltra-logo-filled-refined.webp" alt="Ionfiltra Logo" class="h-14 w-auto object-contain">
+                </div>
+                <p class="text-gray-500 text-sm mt-2">Pulse Jet Bag Filter Monitoring Dashboard</p>
+            </div>
+            <form onsubmit="handleLogin(event)" class="space-y-5 relative z-10">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Operator ID</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-2.5 text-gray-400"><i class="ph ph-user"></i></span>
+                        <input type="text" id="username" class="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all dark:text-white" placeholder="admin" required>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Password</label>
+                    <div class="relative">
+                         <span class="absolute left-3 top-2.5 text-gray-400"><i class="ph ph-lock-key"></i></span>
+                        <input type="password" id="password" class="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all dark:text-white" placeholder="•••••••" required>
+                    </div>
+                </div>
+                <button type="submit" id="btn-login" class="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg shadow-lg shadow-primary-500/30 transition-all transform active:scale-95 flex justify-center items-center">
+                    Sign In
+                </button>
+            </form>
+            <p id="login-msg" class="mt-4 text-center text-sm text-danger hidden"></p>
+        </div>
+    </section>
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar" class="w-64 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 flex flex-col transition-all duration-300 transform -translate-x-full md:translate-x-0 absolute md:relative z-20 h-full hidden md:flex">
+        <div class="p-6 flex items-center justify-between">
+            <div class="flex items-center space-x-3 w-full">
+                <img src="Ionfiltra-logo-filled-refined.webp" alt="Ionfiltra Logo" class="h-8 w-auto object-contain">
+            </div>
+            <button onclick="toggleSidebar()" class="md:hidden text-gray-500 hover:text-primary-500"><i class="ph ph-x text-xl"></i></button>
+        </div>
+
+        <nav class="flex-1 px-4 space-y-2 mt-4">
+            <button onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full nav-item flex items-center space-x-3 px-4 py-3 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 rounded-lg font-medium transition-colors text-left">
+                <i class="ph ph-squares-four text-xl"></i><span>Dashboard</span>
+            </button>
+            <button onclick="switchTab('analytics')" id="nav-analytics" class="w-full nav-item flex items-center space-x-3 px-4 py-3 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700/50 rounded-lg font-medium transition-colors text-left">
+                <i class="ph ph-chart-line-up text-xl"></i><span>Analytics</span>
+            </button>
+            <button onclick="switchTab('logs')" id="nav-logs" class="w-full nav-item flex items-center space-x-3 px-4 py-3 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700/50 rounded-lg font-medium transition-colors text-left">
+                <i class="ph ph-clipboard-text text-xl"></i><span>Maintenance Logs</span>
+            </button>
+        </nav>
+
+        <div class="p-4 border-t border-gray-200 dark:border-slate-700">
+             <div class="flex items-center justify-between mb-4 px-2">
+                <span class="text-xs font-semibold text-gray-500 uppercase">Appearance</span>
+                <button onclick="toggleTheme()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500 dark:text-yellow-400 transition-colors" title="Toggle Theme">
+                    <i id="theme-icon-sidebar" class="ph ph-moon text-lg"></i>
+                </button>
+            </div>
+            <div class="bg-gray-50 dark:bg-slate-900 rounded-xl p-4 flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm">OP</div>
+                <div class="flex-1 min-w-0">
+                    <p id="nav-user-name" class="text-sm font-medium truncate">Operator</p>
+                    <p class="text-xs text-gray-500 truncate">Online</p>
+                </div>
+                <button onclick="handleLogout()" class="text-gray-400 hover:text-danger transition-colors"><i class="ph ph-sign-out text-xl"></i></button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <div id="main-layout" class="flex-1 flex flex-col h-full relative overflow-hidden hidden">
+        
+        <!-- TOP HEADER -->
+        <header class="h-16 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between px-6 z-10">
+            <div class="flex items-center">
+                <button onclick="toggleSidebar()" class="mr-4 md:hidden text-gray-500"><i class="ph ph-list text-2xl"></i></button>
+                <h2 id="page-title" class="text-xl font-semibold">Dashboard Overview</h2>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <!-- Location Badge -->
+                <div id="header-location" class="hidden md:flex items-center px-3 py-1 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 text-sm font-medium rounded-full border border-primary-100 dark:border-primary-800">
+                    <i class="ph ph-map-pin mr-2"></i> <span>Select Plant</span>
+                </div>
+                
+                <!-- Status Indicator -->
+                <div class="flex items-center space-x-2 text-sm">
+                    <span class="relative flex h-2.5 w-2.5">
+                        <span id="status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-gray-400 opacity-75"></span>
+                        <span id="status-dot-inner" class="relative inline-flex rounded-full h-2.5 w-2.5 bg-gray-500"></span>
+                    </span>
+                    <span id="connection-text" class="text-gray-500 hidden sm:inline">Offline</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- SCROLLABLE CONTENT AREA -->
+        <main id="app-container" class="flex-1 overflow-y-auto p-6 relative">
+            
+            <!-- VIEW: PLANT SELECT -->
+            <section id="plant-select-view" class="h-full flex flex-col justify-center max-w-5xl mx-auto">
+                <h2 class="text-3xl font-bold mb-2">Welcome, <span id="welcome-user">User</span></h2>
+                <p class="text-gray-500 mb-10">Select a facility to initiate telemetry stream.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Nashik Plant Card -->
+                    <div onclick="selectPlant('Nashik Cement Works')" class="card-base group cursor-pointer hover:ring-2 hover:ring-primary-500 transition-all hover:-translate-y-1 overflow-hidden relative">
+                        <!-- Status Badge -->
+                        <div class="absolute top-4 right-4 z-10" id="nashik-status-container">
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-gray-500 text-white shadow-lg">
+                                <i class="ph ph-spinner animate-spin mr-1"></i> Checking...
+                            </span>
+                        </div>
+                        
+                        <!-- Image -->
+                        <div class="h-48 bg-[url('https://images.unsplash.com/photo-1565619624098-e659ad7dd14d?w=800')] bg-cover bg-center relative">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                            <div class="absolute bottom-4 left-5 text-white">
+                                <h3 class="font-bold text-2xl tracking-tight">Nashik Works</h3>
+                                <div class="flex items-center text-gray-300 text-xs mt-1">
+                                    <i class="ph ph-map-pin mr-1"></i> Maharashtra, IN
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Data -->
+                        <div class="p-6">
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div class="bg-gray-50 dark:bg-slate-900/50 p-3 rounded-lg">
+                                    <p class="text-xs text-gray-500 uppercase font-semibold">Sensors</p>
+                                    <p id="nashik-sensor-count" class="text-lg font-bold text-gray-600 dark:text-gray-400">--</p>
+                                </div>
+                                <div class="bg-gray-50 dark:bg-slate-900/50 p-3 rounded-lg">
+                                    <p class="text-xs text-gray-500 uppercase font-semibold">Health</p>
+                                    <p id="nashik-health-text" class="text-lg font-bold text-gray-500">--</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between border-t border-gray-100 dark:border-slate-700 pt-4">
+                                <span class="text-sm text-gray-500">Unit ID: NK-01</span>
+                                <span class="text-sm font-medium text-primary-500 group-hover:underline flex items-center">
+                                    Access Dashboard <i class="ph ph-arrow-right ml-1"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mumbai Plant Card -->
+                    <div onclick="selectPlant('Mumbai Grinding Unit')" class="card-base group cursor-pointer hover:ring-2 hover:ring-warning transition-all hover:-translate-y-1 overflow-hidden relative">
+                        <!-- Status Badge -->
+                        <div class="absolute top-4 right-4 z-10" id="mumbai-status-container">
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-gray-500 text-white shadow-lg">
+                                <i class="ph ph-spinner animate-spin mr-1"></i> Checking...
+                            </span>
+                        </div>
+
+                        <!-- Image -->
+                        <div class="h-48 bg-[url('https://images.unsplash.com/photo-1475663899264-334800e0e73f?w=800')] bg-cover bg-center relative">
+                             <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                             <div class="absolute bottom-4 left-5 text-white">
+                                <h3 class="font-bold text-2xl tracking-tight">Mumbai Unit</h3>
+                                <div class="flex items-center text-gray-300 text-xs mt-1">
+                                    <i class="ph ph-map-pin mr-1"></i> Maharashtra, IN
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Data -->
+                        <div class="p-6">
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div class="bg-gray-50 dark:bg-slate-900/50 p-3 rounded-lg">
+                                    <p class="text-xs text-gray-500 uppercase font-semibold">Sensors</p>
+                                    <p id="mumbai-sensor-count" class="text-lg font-bold text-gray-600 dark:text-gray-400">--</p>
+                                </div>
+                                <div class="bg-gray-50 dark:bg-slate-900/50 p-3 rounded-lg">
+                                    <p class="text-xs text-gray-500 uppercase font-semibold">Health</p>
+                                    <p id="mumbai-health-text" class="text-lg font-bold text-gray-500">--</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between border-t border-gray-100 dark:border-slate-700 pt-4">
+                                <span class="text-sm text-gray-500">Unit ID: MUM-04</span>
+                                <span class="text-sm font-medium text-gray-500 group-hover:text-warning group-hover:underline flex items-center">
+                                    View Logs <i class="ph ph-arrow-right ml-1"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: DASHBOARD -->
+            <section id="dashboard-view" class="hidden space-y-6">
+                <!-- KPI Row -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="card-base p-5 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500 font-medium">System Health</p>
+                            <h3 id="kpi-health" class="text-2xl font-bold mt-1">--%</h3>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center text-success">
+                            <i class="ph ph-heartbeat text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="card-base p-5 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500 font-medium">Active Filters</p>
+                            <h3 id="kpi-sensors" class="text-2xl font-bold mt-1">--</h3>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-primary-500/10 flex items-center justify-center text-primary-500">
+                            <i class="ph ph-funnel text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="card-base p-5 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500 font-medium">Avg Temperature</p>
+                            <h3 id="kpi-temp" class="text-2xl font-bold mt-1">--°C</h3>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center text-warning">
+                            <i class="ph ph-thermometer text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="card-base p-5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors cursor-pointer" onclick="downloadReport()">
+                         <div class="w-full h-full flex items-center justify-center space-x-2 text-primary-600 dark:text-primary-400">
+                            <i class="ph ph-download-simple text-lg"></i>
+                            <span class="font-medium">Export Data</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Content Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Charts Column -->
+                    <div class="lg:col-span-2 space-y-6" id="charts-container">
+                        <div class="card-base p-8 text-center text-gray-500">
+                            <i class="ph ph-spinner animate-spin text-3xl mb-3"></i>
+                            <p>Select a plant to view live telemetry...</p>
+                        </div>
+                    </div>
+
+                    <!-- Side Panel: AI & Anomalies -->
+                    <div class="space-y-6">
+                        <!-- Anomalies List -->
+                        <div class="card-base p-4">
+                            <h3 class="font-bold mb-4 flex items-center text-sm uppercase tracking-wide text-gray-500">
+                                <i class="ph ph-warning-circle mr-2"></i> Recent Anomalies
+                            </h3>
+                            <div id="anomalies-list" class="space-y-3 max-h-[300px] overflow-y-auto">
+                                <p class="text-sm text-gray-400 italic text-center py-4">System nominal. No issues detected.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: ANALYTICS (Real Data) -->
+            <section id="analytics-view" class="hidden space-y-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Performance Analytics</h2>
+                    <div class="flex space-x-2">
+                         <button onclick="downloadAnalyticsReport()" class="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center">
+                            <i class="ph ph-download-simple mr-2"></i> Export Report
+                         </button>
+                         <button class="bg-primary-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-primary-600 flex items-center">
+                            <i class="ph ph-arrows-clockwise mr-2"></i> Refresh
+                         </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="card-base p-6">
+                        <h3 class="font-bold mb-4 text-gray-700 dark:text-gray-300">Average Temperature Trend</h3>
+                        <div class="h-[300px]">
+                            <canvas id="analytics-chart-1"></canvas>
+                        </div>
+                    </div>
+                    <div class="card-base p-6">
+                        <h3 class="font-bold mb-4 text-gray-700 dark:text-gray-300">Filter Efficiency Ratio</h3>
+                        <div class="h-[300px]">
+                            <canvas id="analytics-chart-2"></canvas>
+                        </div>
+                    </div>
+                    <div class="card-base p-6">
+                        <h3 class="font-bold mb-4 text-gray-700 dark:text-gray-300">Sensor Status Distribution</h3>
+                        <div class="h-[300px] flex justify-center">
+                            <canvas id="analytics-chart-3"></canvas>
+                        </div>
+                    </div>
+                    <div class="card-base p-6">
+                         <h3 class="font-bold mb-4 text-gray-700 dark:text-gray-300">Energy Consumption</h3>
+                         <div class="h-[300px]">
+                            <canvas id="analytics-chart-4"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div id="analytics-no-data" class="hidden text-center text-gray-500 py-10">
+                    <p>No real data available. Please select a plant in the Dashboard to fetch data first.</p>
+                </div>
+            </section>
+
+            <!-- VIEW: LOGS -->
+            <section id="logs-view" class="hidden space-y-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Maintenance Logs</h2>
+                    <div class="relative">
+                        <i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-gray-400"></i>
+                        <input type="text" placeholder="Search logs..." class="pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm w-64 outline-none focus:border-primary-500">
+                    </div>
+                </div>
+
+                <div class="card-base overflow-hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100 dark:bg-slate-900/50 text-gray-600 dark:text-gray-400 text-sm uppercase">
+                                <th class="p-4 font-semibold">Log ID</th>
+                                <th class="p-4 font-semibold">Date</th>
+                                <th class="p-4 font-semibold">Technician</th>
+                                <th class="p-4 font-semibold">Activity</th>
+                                <th class="p-4 font-semibold">Status</th>
+                                <th class="p-4 font-semibold">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-slate-700 text-sm">
+                            <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+                                <td class="p-4 font-mono text-xs text-gray-500">LOG-001</td>
+                                <td class="p-4">2023-10-24</td>
+                                <td class="p-4 flex items-center"><div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs mr-2">JD</div> John Doe</td>
+                                <td class="p-4">Filter A1 Replacement</td>
+                                <td class="p-4"><span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">Completed</span></td>
+                                <td class="p-4"><button class="text-primary-500 hover:underline">View</button></td>
+                            </tr>
+                            <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+                                <td class="p-4 font-mono text-xs text-gray-500">LOG-002</td>
+                                <td class="p-4">2023-10-22</td>
+                                <td class="p-4 flex items-center"><div class="w-6 h-6 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xs mr-2">AS</div> Amit Singh</td>
+                                <td class="p-4">Routine Pressure Check</td>
+                                <td class="p-4"><span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-medium">Pending Review</span></td>
+                                <td class="p-4"><button class="text-primary-500 hover:underline">View</button></td>
+                            </tr>
+                             <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+                                <td class="p-4 font-mono text-xs text-gray-500">LOG-003</td>
+                                <td class="p-4">2023-10-20</td>
+                                <td class="p-4 flex items-center"><div class="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs mr-2">RK</div> Rahul K.</td>
+                                <td class="p-4">Sensor Calibration (ESP32_B2)</td>
+                                <td class="p-4"><span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">Completed</span></td>
+                                <td class="p-4"><button class="text-primary-500 hover:underline">View</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="p-4 border-t border-gray-200 dark:border-slate-700 flex justify-between items-center text-sm text-gray-500">
+                        <span>Showing 3 of 124 logs</span>
+                        <div class="flex space-x-2">
+                            <button class="px-3 py-1 border rounded hover:bg-gray-100 dark:hover:bg-slate-700 dark:border-slate-600">Prev</button>
+                            <button class="px-3 py-1 border rounded hover:bg-gray-100 dark:hover:bg-slate-700 dark:border-slate-600">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- FLOATING CHAT WIDGET (Persistent) -->
+    <div class="chat-widget">
+        <!-- Chat Window -->
+        <div id="ai-chat-window" class="chat-window bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+            <div class="p-4 bg-gradient-to-r from-primary-600 to-primary-700 text-white flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <i class="ph ph-robot text-xl"></i>
+                    <span class="font-semibold">IonAI Assistant</span>
+                </div>
+                <button onclick="toggleChat()" class="text-white hover:text-gray-200"><i class="ph ph-x"></i></button>
+            </div>
+            
+            <div id="ai-chat-box" class="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50 dark:bg-slate-900/50 h-[350px]">
+                <div class="flex items-start space-x-2">
+                    <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900 flex-shrink-0 flex items-center justify-center text-primary-600">
+                        <i class="ph ph-robot"></i>
+                    </div>
+                    <div class="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 p-3 rounded-lg rounded-tl-none text-sm shadow-sm max-w-[85%]">
+                        <p>Hi! I'm ready to analyze your filter data. Ask me about trends or anomalies.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-3 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                <form onsubmit="handleAIChat(event)" class="relative">
+                    <input type="text" id="ai-input" class="w-full pl-4 pr-10 py-2.5 bg-gray-100 dark:bg-slate-900 border-none rounded-full text-sm focus:ring-2 focus:ring-primary-500 outline-none dark:text-white" placeholder="Ask AI...">
+                    <button type="submit" class="absolute right-2 top-1.5 p-1.5 bg-primary-500 text-white rounded-full hover:bg-primary-600 transition-colors">
+                        <i class="ph ph-paper-plane-right"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- FAB Button -->
+        <button onclick="toggleChat()" class="w-14 h-14 bg-primary-600 hover:bg-primary-700 text-white rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-105">
+            <i class="ph ph-chat-teardrop-text text-3xl"></i>
+        </button>
+    </div>
+
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // ==========================================
+        // 1. STATE & CONFIG
+        // ==========================================
+        const STATE = {
+            user: localStorage.getItem('ion_user'),
+            theme: localStorage.getItem('ion_theme') || 'light', // DEFAULT to Light
+            plant: null,
+            interval: null,
+            dataBuffer: [], // Stores LIVE data fetched from API
+            chartRefs: {},
+            activeTab: 'dashboard'
+        };
+
+        const DOM = {
+            body: document.body,
+            sidebar: document.getElementById('sidebar'),
+            mainLayout: document.getElementById('main-layout'),
+            loginView: document.getElementById('login-view'),
+            pageTitle: document.getElementById('page-title'),
+            navBtns: {
+                dashboard: document.getElementById('nav-dashboard'),
+                analytics: document.getElementById('nav-analytics'),
+                logs: document.getElementById('nav-logs')
+            },
+            chatWindow: document.getElementById('ai-chat-window')
+        };
+
+        // ==========================================
+        // 2. INITIALIZATION
+        // ==========================================
+        function init() {
+            applyTheme(STATE.theme);
+            if (STATE.user) {
+                loginSuccessUI(STATE.user);
+            } else {
+                DOM.mainLayout.classList.add('hidden');
+                DOM.sidebar.classList.add('hidden');
+                DOM.sidebar.classList.remove('md:flex');
+                DOM.loginView.classList.remove('hidden');
+            }
+        }
+
+        // ==========================================
+        // 3. AUTHENTICATION
+        // ==========================================
+        async function handleLogin(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-login');
+            const msg = document.getElementById('login-msg');
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+
+            btn.innerHTML = '<div class="loader"></div>';
+            msg.classList.add('hidden');
+
+            try {
+                const res = await fetch('http://localhost:3000/api/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ username: user, password: pass })
+                });
+
+                if (!res.ok) throw new Error("Invalid credentials");
+                const data = await res.json();
+                
+                STATE.user = data.username;
+                localStorage.setItem('ion_user', STATE.user);
+                loginSuccessUI(STATE.user);
+
+            } catch (err) {
+                console.warn("Backend unavailable. Using demo login fallback.");
+                if(user.length > 0) {
+                     STATE.user = user;
+                     localStorage.setItem('ion_user', user);
+                     loginSuccessUI(user);
+                } else {
+                    msg.textContent = "Please enter a valid ID.";
+                    msg.classList.remove('hidden');
+                    btn.textContent = 'Sign In';
+                }
+            }
+        }
+
+        function loginSuccessUI(username) {
+            document.getElementById('nav-user-name').textContent = username;
+            document.getElementById('welcome-user').textContent = username;
+            DOM.loginView.style.opacity = '0';
+            
+            // Trigger Plant Status Update Here
+            refreshPlantStatus();
+
+            setTimeout(() => {
+                DOM.loginView.classList.add('hidden');
+                DOM.mainLayout.classList.remove('hidden');
+                DOM.sidebar.classList.remove('hidden');
+                DOM.sidebar.classList.add('md:flex');
+                document.getElementById('plant-select-view').classList.remove('hidden');
+            }, 500);
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('ion_user');
+            window.location.reload();
+        }
+
+        // ==========================================
+        // 3.5. REAL-TIME PLANT STATUS (NEW)
+        // ==========================================
+        async function refreshPlantStatus() {
+            try {
+                // Fetch real data to determine plant status
+                const res = await fetch('http://localhost:3000/api/data');
+                const json = await res.json();
+                
+                if(json.success && json.data.length > 0) {
+                    const data = json.data;
+                    const now = new Date();
+                    const fiveMinsAgo = new Date(now.getTime() - 5 * 60 * 1000);
+
+                    // --- NASHIK LOGIC ---
+                    const nashikData = data.filter(d => d.device_id.startsWith('NK'));
+                    updateSinglePlantStatus(nashikData, 'nashik', fiveMinsAgo);
+
+                    // --- MUMBAI LOGIC ---
+                    const mumbaiData = data.filter(d => d.device_id.startsWith('MUM'));
+                    updateSinglePlantStatus(mumbaiData, 'mumbai', fiveMinsAgo);
+                } else {
+                    setAllPlantsOffline();
+                }
+            } catch (e) {
+                console.error("Failed to fetch plant status:", e);
+                setAllPlantsOffline();
+            }
+        }
+
+        function updateSinglePlantStatus(plantData, prefix, timeThreshold) {
+            const statusEl = document.getElementById(`${prefix}-status-container`);
+            const countEl = document.getElementById(`${prefix}-sensor-count`);
+            const healthEl = document.getElementById(`${prefix}-health-text`);
+
+            if (plantData.length === 0) {
+                statusEl.innerHTML = `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-gray-500 text-white shadow-lg">OFFLINE</span>`;
+                countEl.textContent = "No Data";
+                healthEl.textContent = "--";
+                return;
+            }
+
+            // Find most recent reading
+            // Assuming data might not be sorted, sort desc
+            plantData.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+            const latest = new Date(plantData[0].timestamp);
+            
+            // Unique sensors
+            const uniqueSensors = new Set(plantData.map(d => d.device_id)).size;
+            countEl.textContent = `${uniqueSensors} Active`;
+
+            // Calculate Health
+            const health = calculateHealthScore(plantData);
+            healthEl.textContent = `${health}%`;
+            healthEl.className = `text-lg font-bold ${health > 80 ? 'text-success' : 'text-warning'}`;
+
+            // Check if online
+            if (latest > timeThreshold) {
+                statusEl.innerHTML = `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-500 text-white shadow-lg"><span class="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></span> ONLINE</span>`;
+            } else {
+                statusEl.innerHTML = `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-yellow-500 text-white shadow-lg"><span class="w-2 h-2 bg-white rounded-full mr-2"></span> MAINTENANCE</span>`;
+            }
+        }
+
+        function setAllPlantsOffline() {
+            ['nashik', 'mumbai'].forEach(prefix => {
+                document.getElementById(`${prefix}-status-container`).innerHTML = `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-gray-500 text-white shadow-lg">NO CONNECTION</span>`;
+                document.getElementById(`${prefix}-sensor-count`).textContent = "--";
+            });
+        }
+
+
+        // ==========================================
+        // 4. NAVIGATION & TABS
+        // ==========================================
+        function switchTab(tab) {
+            STATE.activeTab = tab;
+            
+            Object.keys(DOM.navBtns).forEach(key => {
+                const btn = DOM.navBtns[key];
+                const activeClass = "w-full nav-item flex items-center space-x-3 px-4 py-3 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 rounded-lg font-medium transition-colors text-left";
+                const inactiveClass = "w-full nav-item flex items-center space-x-3 px-4 py-3 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700/50 rounded-lg font-medium transition-colors text-left";
+                btn.className = (key === tab) ? activeClass : inactiveClass;
+            });
+
+            document.getElementById('dashboard-view').classList.add('hidden');
+            document.getElementById('plant-select-view').classList.add('hidden');
+            document.getElementById('analytics-view').classList.add('hidden');
+            document.getElementById('logs-view').classList.add('hidden');
+
+            if (tab === 'dashboard') {
+                if(STATE.plant) {
+                    document.getElementById('dashboard-view').classList.remove('hidden');
+                    DOM.pageTitle.textContent = STATE.plant;
+                } else {
+                    document.getElementById('plant-select-view').classList.remove('hidden');
+                    DOM.pageTitle.textContent = "Facility Selection";
+                    // Refresh status when returning to selection
+                    refreshPlantStatus();
+                }
+            } else if (tab === 'analytics') {
+                document.getElementById('analytics-view').classList.remove('hidden');
+                DOM.pageTitle.textContent = "Analytics & Reports";
+                renderAnalyticsCharts(); 
+            } else if (tab === 'logs') {
+                document.getElementById('logs-view').classList.remove('hidden');
+                DOM.pageTitle.textContent = "Maintenance Logs";
+            }
+            
+            if(window.innerWidth < 768) {
+                DOM.sidebar.classList.add('-translate-x-full');
+            }
+        }
+
+        function selectPlant(name) {
+            STATE.plant = name;
+            switchTab('dashboard');
+            document.getElementById('header-location').innerHTML = `<i class="ph ph-map-pin mr-2"></i> ${name}`;
+            document.getElementById('header-location').classList.remove('hidden');
+            
+            const existingBack = document.getElementById('back-btn-dashboard');
+            if(!existingBack) {
+                const backBtn = document.createElement('button');
+                backBtn.id = 'back-btn-dashboard';
+                backBtn.className = "mr-3 text-gray-500 hover:text-primary-500";
+                backBtn.innerHTML = '<i class="ph ph-arrow-left text-xl"></i>';
+                backBtn.onclick = () => {
+                    stopStream();
+                    STATE.plant = null;
+                    document.getElementById('header-location').classList.add('hidden');
+                    switchTab('dashboard');
+                    backBtn.remove();
+                };
+                DOM.pageTitle.parentNode.insertBefore(backBtn, DOM.pageTitle);
+            }
+            startStream();
+        }
+
+        // ==========================================
+        // 5. ANALYTICS CHARTS (REAL DATA LOGIC)
+        // ==========================================
+        function renderAnalyticsCharts() {
+            if(!STATE.dataBuffer || STATE.dataBuffer.length === 0) {
+                document.getElementById('analytics-no-data').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('analytics-no-data').classList.add('hidden');
+
+            const isDark = document.documentElement.classList.contains('dark');
+            const textColor = isDark ? '#94a3b8' : '#64748b';
+            const gridColor = isDark ? '#334155' : '#e2e8f0';
+            const commonOptions = {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: textColor } } },
+                scales: {
+                    x: { grid: { color: gridColor }, ticks: { color: textColor } },
+                    y: { grid: { color: gridColor }, ticks: { color: textColor } }
+                }
+            };
+
+            const data = STATE.dataBuffer;
+            const trendLabels = data.map(d => new Date(d.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})).slice(-20);
+            const trendData = data.map(d => d.temperature).slice(-20);
+
+            const deviceMap = {};
+            data.forEach(d => {
+                if(!deviceMap[d.device_id]) deviceMap[d.device_id] = { tempSum:0, count:0, lastTemp: 0 };
+                deviceMap[d.device_id].tempSum += parseFloat(d.temperature);
+                deviceMap[d.device_id].count++;
+                deviceMap[d.device_id].lastTemp = parseFloat(d.temperature);
+            });
+            const deviceIds = Object.keys(deviceMap);
+            const healthData = deviceIds.map(id => {
+                const avg = deviceMap[id].tempSum / deviceMap[id].count;
+                return Math.max(0, 100 - (Math.abs(avg - 65) * 2)); 
+            });
+
+            let normal = 0, warning = 0, critical = 0;
+            deviceIds.forEach(id => {
+                const t = deviceMap[id].lastTemp;
+                if (t > 85) critical++;
+                else if (t > 75) warning++;
+                else normal++;
+            });
+
+            // Chart 1
+            const ctx1 = document.getElementById('analytics-chart-1');
+            if(STATE.chartRefs['ana-1']) STATE.chartRefs['ana-1'].destroy();
+            STATE.chartRefs['ana-1'] = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: trendLabels,
+                    datasets: [{
+                        label: 'Global Temp (°C)',
+                        data: trendData,
+                        borderColor: '#0ea5e9',
+                        backgroundColor: 'rgba(14, 165, 233, 0.1)',
+                        fill: true, tension: 0.4
+                    }]
+                }, options: commonOptions
+            });
+
+            // Chart 2
+            const ctx2 = document.getElementById('analytics-chart-2');
+            if(STATE.chartRefs['ana-2']) STATE.chartRefs['ana-2'].destroy();
+            STATE.chartRefs['ana-2'] = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: deviceIds,
+                    datasets: [{
+                        label: 'Health Score',
+                        data: healthData,
+                        backgroundColor: healthData.map(h => h > 80 ? '#10b981' : h > 50 ? '#f59e0b' : '#ef4444')
+                    }]
+                }, options: commonOptions
+            });
+
+            // Chart 3
+            const ctx3 = document.getElementById('analytics-chart-3');
+            if(STATE.chartRefs['ana-3']) STATE.chartRefs['ana-3'].destroy();
+            STATE.chartRefs['ana-3'] = new Chart(ctx3, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Normal', 'Warning', 'Critical'],
+                    datasets: [{
+                        data: [normal, warning, critical],
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                        borderWidth: 0
+                    }]
+                }, options: {
+                     responsive: true, maintainAspectRatio: false,
+                     plugins: { legend: { position: 'bottom', labels: { color: textColor } } }
+                }
+            });
+
+             // Chart 4
+             const pressureData = data.map(d => d.pressure).slice(-20);
+             const ctx4 = document.getElementById('analytics-chart-4');
+             if(STATE.chartRefs['ana-4']) STATE.chartRefs['ana-4'].destroy();
+             STATE.chartRefs['ana-4'] = new Chart(ctx4, {
+                type: 'line',
+                data: {
+                    labels: trendLabels,
+                    datasets: [{
+                        label: 'Pressure (Pa)',
+                        data: pressureData,
+                        borderColor: '#8b5cf6',
+                        tension: 0.4
+                    }]
+                }, options: commonOptions
+            });
+        }
+
+        // ==========================================
+        // 6. DASHBOARD & DATA LOGIC
+        // ==========================================
+        function startStream() {
+            fetchData();
+            if(!STATE.interval) STATE.interval = setInterval(fetchData, 5000);
+            updateConnectionStatus('connected');
+        }
+
+        function stopStream() {
+            clearInterval(STATE.interval);
+            STATE.interval = null;
+            updateConnectionStatus('offline');
+        }
+
+        function updateConnectionStatus(status) {
+            const dot = document.getElementById('status-ping');
+            const inner = document.getElementById('status-dot-inner');
+            const text = document.getElementById('connection-text');
+
+            if (status === 'connected') {
+                dot.classList.remove('bg-red-400'); dot.classList.remove('bg-yellow-400'); dot.classList.add('bg-success');
+                inner.classList.remove('bg-red-500'); inner.classList.remove('bg-yellow-500'); inner.classList.add('bg-success');
+                text.textContent = "Live Stream"; text.className = "text-success text-sm font-medium hidden sm:inline";
+            } else if (status === 'simulation') {
+                dot.classList.remove('bg-red-400'); dot.classList.add('bg-yellow-400');
+                inner.classList.remove('bg-red-500'); inner.classList.add('bg-yellow-500');
+                text.textContent = "Simulation Mode"; text.className = "text-yellow-600 dark:text-yellow-400 text-sm font-medium hidden sm:inline";
+            } else {
+                dot.classList.add('bg-red-400'); dot.classList.remove('bg-success');
+                inner.classList.add('bg-red-500'); inner.classList.remove('bg-success');
+                text.textContent = "Offline"; text.className = "text-gray-500 text-sm hidden sm:inline";
+            }
+        }
+
+        async function fetchData() {
+            try {
+                const controller = new AbortController();
+                const id = setTimeout(() => controller.abort(), 3000);
+                const res = await fetch('http://localhost:3000/api/data', { signal: controller.signal });
+                clearTimeout(id);
+                
+                const json = await res.json();
+                if(json.success) {
+                    STATE.dataBuffer = json.data;
+                    renderDashboard(json.data);
+                    if(STATE.activeTab === 'analytics') renderAnalyticsCharts();
+                    updateConnectionStatus('connected');
+                }
+            } catch (e) {
+                console.warn("Backend not reachable, switching to Simulation Mode");
+                generateSimulationData();
+                updateConnectionStatus('simulation');
+            }
+        }
+
+        function generateSimulationData() {
+            const now = new Date();
+            const mockData = [];
+            const ids = STATE.plant === 'Nashik Cement Works' 
+                ? ['NK-01', 'NK-02', 'NK-03', 'NK-04'] 
+                : ['MUM-01', 'MUM-02', 'MUM-03'];
+
+            for(let i=0; i<30; i++) {
+                const time = new Date(now.getTime() - (i * 60000));
+                ids.forEach(id => {
+                    mockData.push({
+                        device_id: id,
+                        temperature: (65 + Math.random() * 15).toFixed(1),
+                        humidity: (40 + Math.random() * 20).toFixed(1),
+                        pressure: (2000 + Math.random() * 50).toFixed(0),
+                        timestamp: time.toISOString()
+                    });
+                });
+            }
+            mockData.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+            STATE.dataBuffer = mockData;
+            renderDashboard(mockData);
+            if(STATE.activeTab === 'analytics') renderAnalyticsCharts();
+        }
+
+        function renderDashboard(data) {
+            const devices = {};
+            data.forEach(d => {
+                if(!devices[d.device_id]) devices[d.device_id] = [];
+                devices[d.device_id].push(d);
+            });
+
+            const deviceIds = Object.keys(devices);
+            if(deviceIds.length === 0) return;
+
+            const latestTemps = deviceIds.map(id => parseFloat(devices[id][0].temperature));
+            const avgTemp = (latestTemps.reduce((a,b)=>a+b, 0) / latestTemps.length).toFixed(1);
+            
+            document.getElementById('kpi-sensors').textContent = deviceIds.length;
+            document.getElementById('kpi-temp').textContent = avgTemp + "°C";
+            document.getElementById('kpi-health').textContent = calculateHealthScore(data) + "%";
+
+            checkAnomalies(data);
+
+            const container = document.getElementById('charts-container');
+            if(container.children[0]?.classList.contains('text-center')) container.innerHTML = '';
+
+            deviceIds.forEach(id => {
+                let card = document.getElementById(`card-${id}`);
+                if (!card) {
+                    card = createChartCard(id);
+                    container.appendChild(card);
+                }
+                updateChart(id, devices[id]);
+            });
+        }
+
+        function calculateHealthScore(data) {
+            let score = 100;
+            const recent = data.slice(0, 20);
+            let issues = 0;
+            recent.forEach(r => {
+                if(r.temperature > 80) issues++;
+                if(r.pressure > 2000) issues++;
+            });
+            return Math.max(0, score - (issues * 5));
+        }
+
+        function checkAnomalies(data) {
+            const list = document.getElementById('anomalies-list');
+            const anomalies = data.filter(d => d.temperature > 85 || d.pressure > 2000).slice(0, 5);
+            
+            if(anomalies.length === 0) {
+                list.innerHTML = '<p class="text-sm text-gray-400 italic text-center py-2">System nominal.</p>';
+                return;
+            }
+            list.innerHTML = anomalies.map(a => `
+                <div class="flex items-start space-x-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-100 dark:border-red-900/30">
+                    <i class="ph ph-warning text-danger text-lg mt-0.5"></i>
+                    <div>
+                        <p class="text-xs font-bold text-danger uppercase">Threshold Exceeded</p>
+                        <p class="text-sm text-gray-700 dark:text-gray-300">Temp: <b>${a.temperature}°C</b> on ${a.device_id}</p>
+                        <p class="text-xs text-gray-500 mt-1">${new Date(a.timestamp).toLocaleTimeString()}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function createChartCard(id) {
+            const div = document.createElement('div');
+            div.id = `card-${id}`;
+            div.className = "card-base p-5";
+            div.innerHTML = `
+                <div class="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-slate-700 pb-3">
+                    <h3 class="font-bold flex items-center"><i class="ph ph-cpu text-primary-500 mr-2"></i> ${id}</h3>
+                    <div class="flex space-x-2">
+                        <span class="text-xs font-mono bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded">Live</span>
+                    </div>
+                </div>
+                <div class="h-[250px] w-full">
+                    <canvas id="canvas-${id}"></canvas>
+                </div>
+            `;
+            return div;
+        }
+
+        function updateChart(id, data) {
+            const ctx = document.getElementById(`canvas-${id}`).getContext('2d');
+            const processed = data.slice(0, 30).reverse();
+            
+            if (STATE.chartRefs[id]) {
+                const chart = STATE.chartRefs[id];
+                chart.data.labels = processed.map(d => d.timestamp);
+                chart.data.datasets[0].data = processed.map(d => d.temperature);
+                chart.data.datasets[1].data = processed.map(d => d.humidity);
+                chart.update('none');
+            } else {
+                const isDark = document.documentElement.classList.contains('dark');
+                const textColor = isDark ? '#94a3b8' : '#64748b';
+                const gridColor = isDark ? '#334155' : '#e2e8f0';
+
+                STATE.chartRefs[id] = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: processed.map(d => d.timestamp),
+                        datasets: [
+                            { 
+                                label: 'Temp (°C)', 
+                                data: processed.map(d => d.temperature),
+                                borderColor: '#0ea5e9',
+                                backgroundColor: 'rgba(14, 165, 233, 0.1)',
+                                borderWidth: 2, tension: 0.4, fill: true, pointRadius: 0
+                            },
+                            { 
+                                label: 'Humidity (%)', 
+                                data: processed.map(d => d.humidity),
+                                borderColor: '#10b981',
+                                backgroundColor: 'transparent',
+                                borderWidth: 2, tension: 0.4, borderDash: [5, 5], pointRadius: 0
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { labels: { color: textColor } } },
+                        scales: {
+                            x: { type: 'time', time: { unit: 'minute' }, grid: { color: gridColor }, ticks: { color: textColor } },
+                            y: { grid: { color: gridColor }, ticks: { color: textColor } }
+                        }
+                    }
+                });
+            }
+        }
+
+        // ==========================================
+        // 7. CHAT & UTILS
+        // ==========================================
+        function toggleTheme() {
+            STATE.theme = STATE.theme === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('ion_theme', STATE.theme);
+            applyTheme(STATE.theme);
+            Object.values(STATE.chartRefs).forEach(chart => {
+                updateChartTheme(chart);
+                chart.update();
+            });
+            if(STATE.activeTab === 'analytics') renderAnalyticsCharts();
+        }
+
+        function applyTheme(theme) {
+            // Update Sidebar Icon
+            const sidebarIcon = document.getElementById('theme-icon-sidebar');
+            if(sidebarIcon) {
+                sidebarIcon.className = (theme === 'dark') ? 'ph ph-sun text-lg' : 'ph ph-moon text-lg';
+            }
+
+            // Update Login Icon
+            const loginIcon = document.getElementById('theme-icon-login');
+            if(loginIcon) {
+                loginIcon.className = (theme === 'dark') ? 'ph ph-sun text-xl' : 'ph ph-moon text-xl';
+            }
+
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        }
+
+        function toggleSidebar() {
+            DOM.sidebar.classList.toggle('-translate-x-full');
+        }
+
+        function toggleChat() {
+            DOM.chatWindow.classList.toggle('open');
+        }
+
+        function handleAIChat(e) {
+            e.preventDefault();
+            const input = document.getElementById('ai-input');
+            const query = input.value.trim();
+            if(!query) return;
+
+            appendMessage('user', query);
+            input.value = '';
+
+            setTimeout(() => {
+                const response = processAIQuery(query);
+                appendMessage('ai', response);
+            }, 600);
+        }
+
+        function appendMessage(role, text) {
+            const box = document.getElementById('ai-chat-box');
+            const isAI = role === 'ai';
+            const div = document.createElement('div');
+            div.className = `flex items-start space-x-2 msg-anim ${!isAI ? 'flex-row-reverse space-x-reverse' : ''}`;
+            const avatar = isAI 
+                ? `<div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900 flex-shrink-0 flex items-center justify-center text-primary-600"><i class="ph ph-robot"></i></div>`
+                : `<div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-slate-700 flex-shrink-0 flex items-center justify-center text-gray-600"><i class="ph ph-user"></i></div>`;
+
+            div.innerHTML = `
+                ${avatar}
+                <div class="${isAI ? 'bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700' : 'bg-primary-600 text-white'} p-3 rounded-lg ${isAI ? 'rounded-tl-none' : 'rounded-tr-none'} text-sm shadow-sm max-w-[85%]">
+                    <div class="prose prose-sm ${!isAI ? 'text-white' : 'dark:text-gray-300'}">${marked.parse(text)}</div>
+                </div>
+            `;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function processAIQuery(query) {
+            const data = STATE.dataBuffer;
+            if(!data || data.length === 0) return "I'm waiting for sensor data to arrive. Please wait a moment.";
+            const lower = query.toLowerCase();
+            if (lower.includes('temp')) {
+                const temps = data.map(d => parseFloat(d.temperature));
+                const avg = (temps.reduce((a,b)=>a+b,0) / temps.length).toFixed(1);
+                return `Average temperature is **${avg}°C**. Peak: **${Math.max(...temps).toFixed(1)}°C**.`;
+            }
+            if (lower.includes('health') || lower.includes('status')) {
+                const score = calculateHealthScore(data);
+                return `System Health is **${score}%**. All sensors active.`;
+            }
+            if (lower.includes('anomaly')) {
+                const count = data.filter(d => d.temperature > 85).length;
+                return count === 0 ? "No anomalies detected." : `Detected **${count}** high temp warnings.`;
+            }
+            return "I can analyze temperature, health status, and anomalies.";
+        }
+
+        function updateChartTheme(chart) {
+            const isDark = document.documentElement.classList.contains('dark');
+            const textColor = isDark ? '#94a3b8' : '#64748b';
+            const gridColor = isDark ? '#334155' : '#e2e8f0';
+            
+            if(chart.config.type === 'doughnut') {
+                chart.options.plugins.legend.labels.color = textColor;
+            } else {
+                chart.options.plugins.legend.labels.color = textColor;
+                chart.options.scales.x.grid.color = gridColor;
+                chart.options.scales.x.ticks.color = textColor;
+                chart.options.scales.y.grid.color = gridColor;
+                chart.options.scales.y.ticks.color = textColor;
+            }
+        }
+
+        // Export Raw Data (Logs)
+        function downloadReport() {
+            if(STATE.dataBuffer.length === 0) return alert("No data to export");
+            let csv = "Timestamp,DeviceID,Temperature,Humidity,Pressure\n";
+            STATE.dataBuffer.forEach(row => csv += `${row.timestamp},${row.device_id},${row.temperature},${row.humidity},${row.pressure}\n`);
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Ionfiltra_Logs_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+        }
+
+        // Export Analytics Summary
+        function downloadAnalyticsReport() {
+            if(STATE.dataBuffer.length === 0) return alert("No data to export");
+            
+            const data = STATE.dataBuffer;
+            const temps = data.map(d => parseFloat(d.temperature));
+            const avgTemp = (temps.reduce((a,b)=>a+b, 0) / temps.length).toFixed(1);
+            const maxTemp = Math.max(...temps).toFixed(1);
+            const minTemp = Math.min(...temps).toFixed(1);
+            const healthScore = calculateHealthScore(data);
+            const anomalies = data.filter(d => d.temperature > 85).length;
+
+            let csv = "Report Date,Metric,Value\n";
+            csv += `${new Date().toLocaleDateString()},Average Temperature,${avgTemp}°C\n`;
+            csv += `${new Date().toLocaleDateString()},Max Temperature,${maxTemp}°C\n`;
+            csv += `${new Date().toLocaleDateString()},Min Temperature,${minTemp}°C\n`;
+            csv += `${new Date().toLocaleDateString()},System Health Score,${healthScore}%\n`;
+            csv += `${new Date().toLocaleDateString()},Anomalies Detected,${anomalies}\n`;
+            csv += `${new Date().toLocaleDateString()},Total Readings,${data.length}\n`;
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Ionfiltra_Analytics_Summary_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+        }
+
+        init();
+    </script>
+</body>
+</html>
