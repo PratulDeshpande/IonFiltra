@@ -1,0 +1,182 @@
+(kicad_sch
+	(version 20250114)
+	(generator "eeschema")
+	(generator_version "9.0")
+	(uuid "27cd7fd2-ffbc-4bbd-b2eb-0eb9eaf04b37")
+	(paper "A4")
+	(lib_symbols)
+	(sheet
+		(at 12.7 44.45)
+		(size 12.7 3.81)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "0c63c263-db8b-4c42-9209-6d4dbc2c3444")
+		(property "Sheetname" "ESP"
+			(at 12.7 43.7384 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "ESP.kicad_sch"
+			(at 12.7 48.8446 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "BE_PROJECT_PCB_2"
+				(path "/27cd7fd2-ffbc-4bbd-b2eb-0eb9eaf04b37"
+					(page "2")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 12.7 69.85)
+		(size 12.7 3.81)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "6a39dcec-7f7c-4626-8c71-ee63d18616b7")
+		(property "Sheetname" "POWER"
+			(at 12.7 69.1384 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "POWER.kicad_sch"
+			(at 12.7 74.2446 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "BE_PROJECT_PCB_2"
+				(path "/27cd7fd2-ffbc-4bbd-b2eb-0eb9eaf04b37"
+					(page "3")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 12.7 120.65)
+		(size 12.7 3.81)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "ca05b0b5-39b1-4905-84bc-8642a73d7db9")
+		(property "Sheetname" "LORA"
+			(at 12.7 119.9384 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "LoRa_Sx1278.kicad_sch"
+			(at 12.7 125.0446 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "BE_PROJECT_PCB_2"
+				(path "/27cd7fd2-ffbc-4bbd-b2eb-0eb9eaf04b37"
+					(page "5")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 12.7 95.25)
+		(size 12.7 3.81)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "fc0501c4-753f-499f-8dcb-a65d8fd393fd")
+		(property "Sheetname" "PROGRAMMING"
+			(at 12.7 94.5384 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "programming.kicad_sch"
+			(at 12.7 99.6446 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "BE_PROJECT_PCB_2"
+				(path "/27cd7fd2-ffbc-4bbd-b2eb-0eb9eaf04b37"
+					(page "4")
+				)
+			)
+		)
+	)
+	(sheet_instances
+		(path "/"
+			(page "1")
+		)
+	)
+	(embedded_fonts no)
+)

@@ -1,0 +1,8 @@
+*.bak
+*.tmp
+*_autosave*
+*.lck
+
+3d-cache/
+gerbers/
+fabrication/
