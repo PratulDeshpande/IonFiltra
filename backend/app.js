@@ -185,9 +185,18 @@ app.post('/api/chat', verifyToken, async (req, res) => {
              if ((nowStamp - row.uploaded_at) > EXPIRY_SECONDS) {
                  if (fs.existsSync(row.local_path)) {
                      console.log(`🔄 Refreshing expiring Gemini URI for ${row.original_name}...`);
-                     const newUpload = await ai.files.upload({ file: row.local_path, mimeType: row.mime_type });
-                     activeUri = newUpload.uri;
-                     await pool.query('UPDATE knowledge_files SET gemini_uri = $1, uploaded_at = $2 WHERE id = $3', [activeUri, nowStamp, row.id]);
+                     try {
+                         const newUpload = await ai.files.upload({ file: row.local_path, mimeType: row.mime_type });
+                         activeUri = newUpload.uri;
+                         await pool.query('UPDATE knowledge_files SET gemini_uri = $1, uploaded_at = $2 WHERE id = $3', [activeUri, nowStamp, row.id]);
+                     } catch(e) {
+                         console.error(`❌ Failed to re-upload ${row.original_name}:`, e.message);
+                         continue; // Skip this file gracefully
+                     }
+                 } else {
+                     console.warn(`⚠️ File ${row.original_name} is expired and missing from disk. Skipping context injection.`);
+                     // Optionally clean up the database: await pool.query('DELETE FROM knowledge_files WHERE id = $1', [row.id]);
+                     continue; // Critically: Skip this file so we don't send an expired URI to Gemini
                  }
              }
              
