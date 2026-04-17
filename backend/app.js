@@ -9,7 +9,7 @@ const { GoogleGenAI } = require('@google/genai');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_ionfiltra_key'; 
+const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_ionfiltra_key';
 const HARDWARE_TOKEN = process.env.HARDWARE_TOKEN || 'ion_sensor_hw_token_2026_never_expires';
 
 // Gemini Client
@@ -72,10 +72,10 @@ app.get('/api/stream', verifyToken, (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
-    
+
     const clientId = Date.now();
     clients.push({ id: clientId, res });
-    
+
     req.on('close', () => {
         clients = clients.filter(c => c.id !== clientId);
     });
@@ -91,7 +91,7 @@ app.post('/api/ingest', verifyToken, async (req, res) => {
     const { node_id, dp, t_in, t_out, p_header, pm, cleaning, rssi, snr, timestamp } = req.body;
     try {
         const q = `INSERT INTO sensor_readings (node_id, dp, t_in, t_out, p_header, pm, cleaning, rssi, snr, timestamp) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`;
-        const v = [Number(node_id), Number(dp)||0, Number(t_in)||0, Number(t_out)||0, Number(p_header)||0, Number(pm)||0, Boolean(cleaning)||false, Number(rssi)||0, Number(snr)||0, Number(timestamp)||Math.floor(Date.now()/1000)];
+        const v = [Number(node_id), Number(dp) || 0, Number(t_in) || 0, Number(t_out) || 0, Number(p_header) || 0, Number(pm) || 0, Boolean(cleaning) || false, Number(rssi) || 0, Number(snr) || 0, Number(timestamp) || Math.floor(Date.now() / 1000)];
         const r = await pool.query(q, v);
         const saved = r.rows[0];
         broadcastData({ ...saved, device_id: `Node-${saved.node_id}`, diff_pressure: saved.dp, inlet_temp: saved.t_in, outlet_temp: saved.t_out, header_pressure: saved.p_header, pm_level: saved.pm, cleaning_status: saved.cleaning, timestamp: saved.created_at });
@@ -127,10 +127,10 @@ app.get('/api/export/:nodeId', verifyToken, async (req, res) => {
 app.post('/api/upload_knowledge', verifyToken, upload.single('document'), async (req, res) => {
     try {
         if (!req.file) throw new Error("No file received");
-        
+
         const localPath = path.join(__dirname, req.file.path);
         const mimeType = req.file.mimetype || 'application/pdf';
-        
+
         console.log(`📤 Uploading ${req.file.originalname} to Gemini AI...`);
         const uploadResult = await ai.files.upload({
             file: localPath,
@@ -141,13 +141,13 @@ app.post('/api/upload_knowledge', verifyToken, upload.single('document'), async 
 
         const insertQ = `INSERT INTO knowledge_files (original_name, local_path, mime_type, gemini_uri, uploaded_at) VALUES ($1, $2, $3, $4, $5) RETURNING id, original_name`;
         const uploadedAt = Math.floor(Date.now() / 1000);
-        
+
         await pool.query(insertQ, [req.file.originalname, localPath, mimeType, uploadResult.uri, uploadedAt]);
 
         res.json({ success: true, message: 'Document added to AI context successfully!' });
-    } catch (e) { 
+    } catch (e) {
         console.error(e);
-        res.status(500).json({ error: e.message }); 
+        res.status(500).json({ error: e.message });
     }
 });
 
@@ -171,41 +171,41 @@ app.post('/api/chat', verifyToken, async (req, res) => {
 
     // 1. DEEP PATH (Gemini)
     try {
-         const kbResult = await pool.query('SELECT * FROM knowledge_files');
-         
-         const nowStamp = Math.floor(Date.now() / 1000);
-         const EXPIRY_SECONDS = 40 * 3600; // Auto-renew Gemini URIs older than 40 hours
-         
-         let fileParts = [];
-         
-         for (let row of kbResult.rows) {
-             let activeUri = row.gemini_uri;
-             
-             // Refresh Permanent File if Gemini URI is expiring
-             if ((nowStamp - row.uploaded_at) > EXPIRY_SECONDS) {
-                 if (fs.existsSync(row.local_path)) {
-                     console.log(`🔄 Refreshing expiring Gemini URI for ${row.original_name}...`);
-                     try {
-                         const newUpload = await ai.files.upload({ file: row.local_path, mimeType: row.mime_type });
-                         activeUri = newUpload.uri;
-                         await pool.query('UPDATE knowledge_files SET gemini_uri = $1, uploaded_at = $2 WHERE id = $3', [activeUri, nowStamp, row.id]);
-                     } catch(e) {
-                         console.error(`❌ Failed to re-upload ${row.original_name}:`, e.message);
-                         continue; // Skip this file gracefully
-                     }
-                 } else {
-                     console.warn(`⚠️ File ${row.original_name} is expired and missing from disk. Skipping context injection.`);
-                     // Optionally clean up the database: await pool.query('DELETE FROM knowledge_files WHERE id = $1', [row.id]);
-                     continue; // Critically: Skip this file so we don't send an expired URI to Gemini
-                 }
-             }
-             
-             fileParts.push({
-                 fileData: { fileUri: activeUri, mimeType: row.mime_type }
-             });
-         }
-         
-         const systemPrompt = `
+        const kbResult = await pool.query('SELECT * FROM knowledge_files');
+
+        const nowStamp = Math.floor(Date.now() / 1000);
+        const EXPIRY_SECONDS = 40 * 3600; // Auto-renew Gemini URIs older than 40 hours
+
+        let fileParts = [];
+
+        for (let row of kbResult.rows) {
+            let activeUri = row.gemini_uri;
+
+            // Refresh Permanent File if Gemini URI is expiring
+            if ((nowStamp - row.uploaded_at) > EXPIRY_SECONDS) {
+                if (fs.existsSync(row.local_path)) {
+                    console.log(`🔄 Refreshing expiring Gemini URI for ${row.original_name}...`);
+                    try {
+                        const newUpload = await ai.files.upload({ file: row.local_path, mimeType: row.mime_type });
+                        activeUri = newUpload.uri;
+                        await pool.query('UPDATE knowledge_files SET gemini_uri = $1, uploaded_at = $2 WHERE id = $3', [activeUri, nowStamp, row.id]);
+                    } catch (e) {
+                        console.error(`❌ Failed to re-upload ${row.original_name}:`, e.message);
+                        continue; // Skip this file gracefully
+                    }
+                } else {
+                    console.warn(`⚠️ File ${row.original_name} is expired and missing from disk. Skipping context injection.`);
+                    // Optionally clean up the database: await pool.query('DELETE FROM knowledge_files WHERE id = $1', [row.id]);
+                    continue; // Critically: Skip this file so we don't send an expired URI to Gemini
+                }
+            }
+
+            fileParts.push({
+                fileData: { fileUri: activeUri, mimeType: row.mime_type }
+            });
+        }
+
+        const systemPrompt = `
          You are a specialized Industrial IoT Assistant named "Ion Assist".
          1. You are given real-time JSON context telemetry data directly below.
          2. You are also given physical uploaded PDF documents (datasheets, filters, manuals).
@@ -216,24 +216,26 @@ app.post('/api/chat', verifyToken, async (req, res) => {
          ${JSON.stringify(contextData)}
          `;
 
-         console.log('🤖 Sending context to Gemini 2.5 Flash...');
-         
-         const contentsArr = [
-             { role: 'user', parts: [
-                 { text: systemPrompt },
-                 ...fileParts,
-                 { text: `USER QUERY: ${message}` }
-             ]}
-         ];
-         
-         const response = await ai.models.generateContent({
-             model: 'gemini-2.5-flash',
-             contents: contentsArr
-         });
-         
-         res.json({ reply: response.text });
+        console.log('🤖 Sending context to Gemini 2.5 Flash...');
 
-    } catch(err) {
+        const contentsArr = [
+            {
+                role: 'user', parts: [
+                    { text: systemPrompt },
+                    ...fileParts,
+                    { text: `USER QUERY: ${message}` }
+                ]
+            }
+        ];
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: contentsArr
+        });
+
+        res.json({ reply: response.text });
+
+    } catch (err) {
         console.error("Gemini Error:", err);
         res.status(500).json({ reply: "⚠️ Gemini Edge AI Error: " + err.message });
     }

@@ -29,10 +29,10 @@ export const AppProvider = ({ children }) => {
     useEffect(() => {
         if (isInitialized.current) return;
         isInitialized.current = true;
-        
+
         const storedToken = localStorage.getItem('ion_token');
         const storedUser = localStorage.getItem('ion_user');
-        
+
         if (storedToken && storedUser) {
             setToken(storedToken);
             setUser(JSON.parse(storedUser));
@@ -54,18 +54,18 @@ export const AppProvider = ({ children }) => {
         fetch(`${API_BASE_URL}/api/data`, {
             headers: { 'Authorization': `Bearer ${token}` }
         })
-        .then(res => res.json())
-        .then(json => {
-            if(json.success && Array.isArray(json.data)) {
-                const grouped = {};
-                json.data.reverse().forEach(record => {
-                    const id = record.device_id || 'Unknown-Node';
-                    if (!grouped[id]) grouped[id] = [];
-                    grouped[id].push(record);
-                });
-                setNodeDataMap(grouped);
-            }
-        }).catch(err => console.error("Initial data load error:", err));
+            .then(res => res.json())
+            .then(json => {
+                if (json.success && Array.isArray(json.data)) {
+                    const grouped = {};
+                    json.data.reverse().forEach(record => {
+                        const id = record.device_id || 'Unknown-Node';
+                        if (!grouped[id]) grouped[id] = [];
+                        grouped[id].push(record);
+                    });
+                    setNodeDataMap(grouped);
+                }
+            }).catch(err => console.error("Initial data load error:", err));
 
         // Connect SSE with token in query
         const eventSource = new EventSource(`${API_BASE_URL}/api/stream?token=${token}`);
@@ -73,7 +73,7 @@ export const AppProvider = ({ children }) => {
 
         eventSource.onopen = () => setIsConnected(true);
         eventSource.onmessage = (event) => {
-            if(event.data === '{"ping":true}') return;
+            if (event.data === '{"ping":true}') return;
             try {
                 const newData = JSON.parse(event.data);
                 const nodeId = newData.device_id || 'Unknown-Node';
@@ -83,15 +83,15 @@ export const AppProvider = ({ children }) => {
                     if (updatedList.length > 50) updatedList.shift();
                     return { ...prev, [nodeId]: updatedList };
                 });
-            } catch(e) {}
+            } catch (e) { }
         };
-        eventSource.onerror = () => { 
-            setIsConnected(false); 
-            eventSource.close(); 
+        eventSource.onerror = () => {
+            setIsConnected(false);
+            eventSource.close();
         };
 
         return () => {
-             if (eventSourceRef.current) eventSourceRef.current.close();
+            if (eventSourceRef.current) eventSourceRef.current.close();
         };
     }, [view, token]);
 

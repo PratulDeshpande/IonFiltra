@@ -10,14 +10,14 @@ types.setTypeParser(20, val => parseInt(val, 10));
 // Safely handle Supabase / Render connection formats which use exact connection strings + SSL
 const connectionString = process.env.DB_URL || process.env.DATABASE_URL;
 
-const poolConfig = connectionString 
-? {
+const poolConfig = connectionString
+  ? {
     connectionString,
     ssl: { rejectUnauthorized: false }, // Critical for external cloud Postgres connections (Supabase)
     max: 20,
     idleTimeoutMillis: 30000
   }
-: {
+  : {
     user: process.env.DB_USER || 'postgres',
     host: process.env.DB_HOST || 'localhost',
     database: process.env.DB_NAME || 'sensor_db',
@@ -31,7 +31,7 @@ const poolConfig = connectionString
 const pool = new Pool(poolConfig);
 
 pool.on('connect', () => {
-    // Silent connection tracker
+  // Silent connection tracker
 });
 
 pool.on('error', (err) => {
@@ -45,10 +45,10 @@ pool.query('SELECT NOW()', async (err, res) => {
     console.error('💡 Ensure your connection string or .env credentials are correct.');
   } else {
     console.log('✅ Connected to Postgres Core Engine - Time:', res.rows[0].now);
-    
+
     try {
-        // Auto-build Telemetry table for empty Supabase instances
-        await pool.query(`
+      // Auto-build Telemetry table for empty Supabase instances
+      await pool.query(`
             CREATE TABLE IF NOT EXISTS sensor_readings (
                 id SERIAL PRIMARY KEY,
                 node_id INTEGER NOT NULL,
@@ -64,10 +64,10 @@ pool.query('SELECT NOW()', async (err, res) => {
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
         `);
-        console.log('📈 Core Telemetry Table ready.');
+      console.log('📈 Core Telemetry Table ready.');
 
-        // Auto-build Gemini AI context table
-        await pool.query(`
+      // Auto-build Gemini AI context table
+      await pool.query(`
             CREATE TABLE IF NOT EXISTS knowledge_files (
                 id SERIAL PRIMARY KEY,
                 original_name TEXT,
@@ -77,9 +77,9 @@ pool.query('SELECT NOW()', async (err, res) => {
                 uploaded_at BIGINT
             );
         `);
-        console.log('📂 Knowledge Base Table ready.');
-    } catch(dbErr) {
-        console.error('❌ Failed executing startup DB builder:', dbErr.message);
+      console.log('📂 Knowledge Base Table ready.');
+    } catch (dbErr) {
+      console.error('❌ Failed executing startup DB builder:', dbErr.message);
     }
   }
 });

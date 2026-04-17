@@ -18,19 +18,19 @@ const Dashboard = () => {
         <div className={`min-h-screen flex flex-col ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`} style={{ backgroundColor: theme === 'dark' ? '#0f172a' : '#f1f5f9' }}>
             <header className={`h-20 border-b flex items-center justify-between px-8 ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
                 <div className="flex items-center gap-4">
-                    <img 
-                        src="/logo.png" 
-                        alt="Ionfiltra Logo" 
+                    <img
+                        src="/logo.png"
+                        alt="Ionfiltra Logo"
                         className={`h-10 transition-all ${theme === 'dark' ? 'bg-white bg-opacity-95 p-1.5 rounded-lg shadow-sm' : ''}`}
                     />
                     {!isConnected && <span className="ml-4 text-xs bg-red-500/20 text-red-500 px-2 py-1 rounded">Stream Disconnected</span>}
                 </div>
                 <div className="flex items-center gap-4">
                     <button onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} className="p-3 rounded-xl hover:bg-blue-500/10 transition">
-                        {theme === 'dark' ? <Sun size={20}/> : <Moon size={20}/>}
+                        {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
                     </button>
                     <button onClick={logout} className="p-3 rounded-xl text-red-500 hover:bg-red-500/10 transition">
-                        <LogOut size={20}/>
+                        <LogOut size={20} />
                     </button>
                 </div>
             </header>
@@ -45,11 +45,11 @@ const Dashboard = () => {
                 ) : (
                     <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-8">
                         {activeNodes.map(nodeId => (
-                            <NodeCard 
-                                key={nodeId} 
-                                nodeId={nodeId} 
-                                data={nodeDataMap[nodeId] || []} 
-                                isPlaceholder={false} 
+                            <NodeCard
+                                key={nodeId}
+                                nodeId={nodeId}
+                                data={nodeDataMap[nodeId] || []}
+                                isPlaceholder={false}
                             />
                         ))}
                     </div>
