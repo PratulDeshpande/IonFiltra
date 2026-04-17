@@ -1,0 +1,38 @@
+{
+  "name": "ionfiltra-backend",
+  "version": "2.0.0",
+  "description": "Industrial IoT Backend with Real-time SSE for Sensor Data",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "setup": "node setup_db.js",
+    "reset": "npm run setup && npm start",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "iot",
+    "sensors",
+    "realtime",
+    "lora",
+    "postgresql"
+  ],
+  "author": "IONFILTRA Team",
+  "license": "MIT",
+  "dependencies": {
+    "@google/genai": "^1.50.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.1",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=7.0.0"
+  }
+}
