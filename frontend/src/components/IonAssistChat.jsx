@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bot, LogOut, Send, Plus, Maximize2, Minimize2, Trash2, Loader2, UploadCloud, FileText, Database } from 'lucide-react';
+import { Bot, LogOut, Send, Plus, Maximize2, Minimize2, Trash2, Loader2, Paperclip, FileText, Database, ChevronRight, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 const IonAssistChat = () => {
@@ -11,6 +11,7 @@ const IonAssistChat = () => {
     const [chatInput, setChatInput] = useState('');
     const [isAiThinking, setIsAiThinking] = useState(false);
     const chatEndRef = useRef(null);
+    const textareaRef = useRef(null);
 
     // Document Management
     const [isUploading, setIsUploading] = useState(false);
@@ -51,7 +52,9 @@ const IonAssistChat = () => {
     }, [chatSessions]);
 
     useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        setTimeout(() => {
+            chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 50);
     }, [chatMessages, isAiThinking, chatOpen, isChatExpanded]);
 
     const fetchKnowledgeBase = async () => {
@@ -84,11 +87,8 @@ const IonAssistChat = () => {
             });
             const data = await res.json();
             if (data.success) {
-                // Refresh list
                 await fetchKnowledgeBase();
-                
-                // Add a notification directly into the chat
-                const updatedMessages = [...chatMessages, { role: 'ai', text: `✅ I have analyzed and memorized: **${file.name}**. You can now ask me questions about it.` }];
+                const updatedMessages = [...chatMessages, { role: 'ai', text: `✅ Successfully analyzed: **${file.name}**. It is now in my knowledge base.` }];
                 updateCurrentSession(updatedMessages);
             } else {
                 alert("Upload failed: " + data.error);
@@ -107,7 +107,7 @@ const IonAssistChat = () => {
             id: newId,
             title: 'New Conversation',
             timestamp: new Date().toISOString(),
-            messages: [{ role: 'ai', text: '👋 Hi! I am Ion Assist (Powered by Google Gemini RAG). How can I help you analyze the sensor data or manuals?' }]
+            messages: [{ role: 'ai', text: '👋 Hi! I am Ion Assist (Powered by Google Gemini). How can I help you analyze sensor data or manuals?' }]
         };
         setChatSessions([newSession]);
         setCurrentSessionId(newId);
@@ -166,15 +166,20 @@ const IonAssistChat = () => {
     };
 
     const handleChat = async (e) => {
-        e.preventDefault();
+        e?.preventDefault();
         if (!chatInput.trim()) return;
+        
         const userMsg = chatInput;
+        setChatInput('');
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto'; // Reset height
+        }
+        
         const updatedMessages = [...chatMessages, { role: 'user', text: userMsg }];
         updateCurrentSession(updatedMessages);
-        setChatInput('');
         setIsAiThinking(true);
 
-        const activeNodes = Object.keys(nodeDataMap);
+        const activeNodes = Object.keys(nodeDataMap || {});
         const targetNodeId = activeNodes.find(id => userMsg.toLowerCase().includes(id.toLowerCase()));
         let contextData = targetNodeId ? { target: targetNodeId, history: (nodeDataMap[targetNodeId] || []).slice(-5) } : { type: "system_summary", readings: nodeDataMap };
 
@@ -189,7 +194,11 @@ const IonAssistChat = () => {
             });
             const data = await response.json();
             setIsAiThinking(false);
-            updateCurrentSession([...updatedMessages, { role: 'ai', text: data.reply }]);
+            if (data.reply) {
+                updateCurrentSession([...updatedMessages, { role: 'ai', text: data.reply }]);
+            } else {
+                updateCurrentSession([...updatedMessages, { role: 'ai', text: "⚠️ Expected a reply, but none was received." }]);
+            }
         } catch (err) {
             setIsAiThinking(false);
             updateCurrentSession([...updatedMessages, { role: 'ai', text: "⚠️ Server connection failed or timeout." }]);
@@ -197,106 +206,190 @@ const IonAssistChat = () => {
     };
 
     return (
-        <div className={`fixed transition-all duration-300 z-50 ${isChatExpanded ? 'inset-0 w-full h-full' : 'bottom-8 right-8 flex flex-col items-end'}`}>
-            {chatOpen && (
-                <div className={`flex ${isChatExpanded ? 'flex-row h-full rounded-none' : 'flex-col w-96 h-[650px] mb-4 rounded-3xl'} border shadow-2xl overflow-hidden ${theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
+        <div className={`fixed transition-all duration-500 z-50 ease-in-out ${isChatExpanded ? 'inset-4 sm:inset-10 w-[calc(100%-2rem)] sm:w-[calc(100%-5rem)] h-[calc(100%-2rem)] sm:h-[calc(100%-5rem)]' : 'bottom-6 right-6 sm:bottom-8 sm:right-8 flex flex-col items-end pointer-events-none'}`}>
+            
+            <div className={`pointer-events-auto transition-all duration-500 transform origin-bottom-right ${chatOpen ? 'scale-100 opacity-100' : 'scale-90 opacity-0 pointer-events-none'} ${isChatExpanded ? 'w-full h-full rounded-2xl' : 'w-[90vw] sm:w-[420px] h-[75vh] max-h-[750px] mb-4 rounded-3xl'} flex flex-col shadow-2xl overflow-hidden border backdrop-blur-md ${theme === 'dark' ? 'bg-slate-900/95 border-slate-700/60 shadow-slate-900/80' : 'bg-white/95 border-slate-200 shadow-slate-300/60'}`}>
+                
+                {/* Header */}
+                <div className={`flex-shrink-0 p-4 shrink-0 flex justify-between items-center z-10 transition-colors ${theme === 'dark' ? 'bg-slate-800 border-b border-slate-700' : 'bg-gradient-to-r from-blue-700 to-indigo-600 text-white'}`}>
+                    <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-xl backdrop-blur-sm ${theme === 'dark' ? 'bg-blue-600/20 text-blue-400' : 'bg-white/20 text-white'}`}>
+                            <Bot size={22}/>
+                        </div>
+                        <div>
+                            <h3 className={`font-bold text-sm tracking-wide ${theme === 'dark' ? 'text-slate-100' : 'text-white'}`}>Ion Assist</h3>
+                            <p className={`text-[10px] flex items-center gap-1.5 ${theme === 'dark' ? 'text-slate-400' : 'text-blue-100'}`}>
+                                <span className="relative flex h-2 w-2">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                </span>
+                                Gemini RAG Engine
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <button onClick={createNewSession} className={`p-1.5 rounded-lg transition-colors ${theme==='dark'?'hover:bg-slate-700 text-slate-300':'hover:bg-white/20 text-white'}`} title="New Chat"><Plus size={18}/></button>
+                        <button onClick={()=>setIsChatExpanded(!isChatExpanded)} className={`hidden sm:block p-1.5 rounded-lg transition-colors ${theme==='dark'?'hover:bg-slate-700 text-slate-300':'hover:bg-white/20 text-white'}`} title={isChatExpanded ? "Minimize" : "Expand"}>
+                            {isChatExpanded ? <Minimize2 size={18}/> : <Maximize2 size={18}/>}
+                        </button>
+                        <button onClick={()=>setChatOpen(false)} className={`p-1.5 rounded-lg transition-colors ${theme==='dark'?'hover:bg-red-500/20 text-slate-300 hover:text-red-400':'hover:bg-white/20 text-white'}`} title="Close Chat"><X size={18}/></button>
+                    </div>
+                </div>
+
+                {/* Body Container */}
+                <div className="flex flex-1 min-h-0 relative">
+                    
+                    {/* Sidebar (Expanded Text Context) */}
                     {isChatExpanded && (
-                        <div className={`w-80 flex-shrink-0 flex flex-col border-r ${theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                            {/* History Section */}
-                            <div className="flex-1 overflow-hidden flex flex-col border-b border-slate-800/50">
-                                <div className="p-4 border-b border-slate-800/50 flex items-center justify-between">
-                                    <span className="font-bold text-xs uppercase tracking-widest opacity-50">History</span>
-                                    <button onClick={createNewSession} className="text-blue-500 p-1"><Plus size={18}/></button>
+                        <div className={`w-72 hidden sm:flex flex-shrink-0 flex-col border-r transition-colors ${theme === 'dark' ? 'bg-slate-900/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+                            
+                            {/* Sessions History */}
+                            <div className={`flex-1 overflow-y-auto border-b ${theme==='dark'?'border-slate-700/50':'border-slate-200'} custom-scrollbar`}>
+                                <div className="p-4 sticky top-0 backdrop-blur-md z-10 flex items-center justify-between">
+                                    <span className={`font-bold text-xs uppercase tracking-widest ${theme==='dark'?'text-slate-500':'text-slate-400'}`}>History</span>
                                 </div>
-                                <div className="p-2 space-y-1 overflow-y-auto flex-1">
+                                <div className="px-3 pb-4 space-y-1">
                                     {chatSessions.map(s => (
-                                        <div key={s.id} onClick={()=>switchSession(s.id)} className={`p-3 rounded-xl text-sm cursor-pointer flex justify-between items-center ${currentSessionId === s.id ? 'bg-blue-600/10 text-blue-500' : 'opacity-60 hover:opacity-100'}`}>
+                                        <div key={s.id} onClick={()=>switchSession(s.id)} className={`p-3 rounded-xl text-sm cursor-pointer flex justify-between items-center group transition-colors ${currentSessionId === s.id ? (theme==='dark'?'bg-blue-600/20 text-blue-400':'bg-blue-50 text-blue-700 font-medium') : (theme==='dark'?'hover:bg-slate-800 text-slate-400':'hover:bg-slate-200/50 text-slate-600')}`}>
                                             <span className="truncate pr-2">{s.title}</span>
-                                            <button onClick={(e)=>deleteSession(e, s.id)} className="hover:text-red-500"><Trash2 size={14}/></button>
+                                            <button onClick={(e)=>deleteSession(e, s.id)} className="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity"><Trash2 size={14}/></button>
                                         </div>
                                     ))}
                                 </div>
                             </div>
                             
-                            {/* Knowledge Base RAG Sidebar */}
-                            <div className="h-1/3 min-h-[200px] flex flex-col">
-                                <div className="p-4 border-b border-slate-800/50 flex items-center justify-between">
-                                    <span className="font-bold text-xs uppercase tracking-widest opacity-50 flex items-center gap-2"><Database size={14}/> DB Knowledge</span>
+                            {/* Knowledge Base */}
+                            <div className="h-[40%] flex flex-col">
+                                <div className="p-4 sticky top-0 backdrop-blur-md z-10 flex items-center gap-2">
+                                    <Database size={14} className={theme==='dark'?'text-slate-500':'text-slate-400'}/> 
+                                    <span className={`font-bold text-xs uppercase tracking-widest ${theme==='dark'?'text-slate-500':'text-slate-400'}`}>Knowledge base</span>
                                 </div>
-                                <div className="p-3 overflow-y-auto flex-1 space-y-2">
+                                <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-2 custom-scrollbar">
                                     {knownDocs.length === 0 ? (
-                                        <p className="text-xs opacity-40 text-center mt-4">No PDFs/Datasheets uploaded yet.</p>
+                                        <div className={`text-center py-6 text-xs px-4 ${theme==='dark'?'text-slate-500':'text-slate-400'}`}>No PDF/Text files uploaded yet. Upload data to grant AI extra context.</div>
                                     ) : (
                                         knownDocs.map((doc, idx) => (
-                                            <div key={idx} className="flex items-center gap-2 text-xs p-2 rounded-lg bg-slate-800/20 opacity-80 border border-slate-700/50">
-                                                <FileText size={12} className="text-blue-400 flex-shrink-0" />
-                                                <span className="truncate flex-1">{doc.original_name}</span>
+                                            <div key={idx} className={`flex items-center gap-2 text-xs p-2.5 rounded-xl border transition-colors ${theme==='dark'?'bg-slate-800/40 border-slate-700 text-slate-300':'bg-white border-slate-200 text-slate-600'}`}>
+                                                <FileText size={14} className="text-blue-500 flex-shrink-0" />
+                                                <span className="truncate flex-1 font-medium">{doc.original_name}</span>
                                             </div>
                                         ))
                                     )}
                                 </div>
-                                <div className="p-4 border-t border-slate-800/50">
-                                    <input type="file" ref={fileInputRef} className="hidden" accept=".pdf,.txt,.csv,.md" onChange={handleFileUpload} />
-                                    <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className={`w-full py-2 flex items-center justify-center gap-2 text-sm font-bold rounded-xl transition ${isUploading ? 'bg-blue-900/50 text-blue-300 cursor-not-allowed' : 'bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white'}`}>
-                                        {isUploading ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
-                                        {isUploading ? "Processing..." : "Add Context File"}
-                                    </button>
-                                </div>
                             </div>
                         </div>
                     )}
-                    <div className="flex flex-col flex-1 min-w-0">
-                        <div className="p-4 bg-blue-600 text-white flex justify-between items-center">
-                            <div className="flex items-center gap-2"><Bot size={20}/> <span className="font-bold text-sm">ION ASSIST (Gemini RAG)</span></div>
-                            <div className="flex items-center gap-2">
-                                <button onClick={createNewSession}><Plus size={18}/></button>
-                                <button onClick={()=>setIsChatExpanded(!isChatExpanded)}>{isChatExpanded ? <Minimize2 size={18}/> : <Maximize2 size={18}/>}</button>
-                                <button onClick={()=>setChatOpen(false)}><LogOut size={18} className="rotate-180"/></button>
-                            </div>
-                        </div>
+
+                    {/* Main Chat Area */}
+                    <div className="flex-1 flex flex-col min-w-0 h-full">
                         
-                        {/* Mobile upload header if not expanded */}
-                        {!isChatExpanded && (
-                            <div className={`p-2 px-4 border-b flex justify-between items-center text-xs ${theme==='dark' ? 'bg-slate-800/30 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
-                                <span className="opacity-60 flex items-center gap-1"><Database size={10}/> {knownDocs.length} PDFs Loaded</span>
-                                <input type="file" ref={fileInputRef} className="hidden" accept="application/pdf, text/plain" onChange={handleFileUpload} />
-                                <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="text-blue-500 hover:underline flex items-center gap-1">
-                                     {isUploading ? <Loader2 size={12} className="animate-spin" /> : <UploadCloud size={12} />}
-                                     {isUploading ? "Uploading..." : "Add File"}
-                                </button>
+                        {/* Status bar for unexpanded mode */}
+                        {!isChatExpanded && knownDocs.length > 0 && (
+                            <div className={`px-4 py-2 flex-shrink-0 text-[10px] flex items-center gap-2 border-b ${theme === 'dark' ? 'bg-slate-800/80 border-slate-700/60 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                                <Database size={10} className="text-blue-500"/> {knownDocs.length} custom files active in context
                             </div>
                         )}
 
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                        {/* Messages List */}
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 custom-scrollbar scroll-smooth">
+                            {chatMessages.length === 0 && (
+                                <div className="flex flex-col items-center justify-center h-full text-center opacity-50">
+                                    <Bot size={48} className="mb-4 text-blue-500 opacity-50"/>
+                                    <p className="text-sm">Start a conversation with Ion Assist</p>
+                                </div>
+                            )}
+                            
                             {chatMessages.map((m, i) => (
                                 <div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}>
-                                    <div className={`p-3 rounded-2xl max-w-[85%] text-sm whitespace-pre-wrap ${m.role==='user' ? 'bg-blue-600 text-white' : (theme==='dark' ? 'bg-slate-800 text-slate-200 border border-slate-700' : 'bg-slate-200 text-slate-800')}`}>
+                                    {m.role === 'ai' && (
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white mr-3 mt-auto mb-auto flex-shrink-0 shadow-sm">
+                                            <Bot size={16}/>
+                                        </div>
+                                    )}
+                                    <div className={`p-3.5 px-4 rounded-2xl max-w-[85%] text-sm leading-relaxed shadow-sm whitespace-pre-wrap ${m.role==='user' 
+                                        ? 'bg-blue-600 text-white rounded-br-sm' 
+                                        : (theme==='dark' ? 'bg-slate-800 text-slate-200 border border-slate-700/50 rounded-bl-sm' : 'bg-white text-slate-800 border border-slate-100 rounded-bl-sm')}`}>
                                         {m.text}
                                     </div>
                                 </div>
                             ))}
-                            {isAiThinking && <div className="text-xs opacity-50 animate-pulse flex items-center gap-2"><Loader2 size={12} className="animate-spin"/> Parsing telemetry & documents...</div>}
-                            <div ref={chatEndRef} />
+                            
+                            {/* Typing Indicator */}
+                            {isAiThinking && (
+                                <div className="flex justify-start">
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white mr-3 mt-auto mb-auto flex-shrink-0 shadow-sm">
+                                        <Bot size={16}/>
+                                    </div>
+                                    <div className={`p-4 rounded-2xl rounded-bl-sm border flex gap-1.5 items-center ${theme==='dark'?'bg-slate-800 border-slate-700/50':'bg-white border-slate-100'}`}>
+                                        <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: "0ms"}}></span>
+                                        <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: "150ms"}}></span>
+                                        <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: "300ms"}}></span>
+                                    </div>
+                                </div>
+                            )}
+                            <div ref={chatEndRef} className="h-1" />
                         </div>
-                        <form onSubmit={handleChat} className={`p-4 border-t flex gap-2 ${theme==='dark' ? 'border-slate-800' : 'border-slate-200'}`}>
-                            <input 
-                                className="flex-1 bg-transparent text-sm outline-none" 
-                                placeholder="Query telemetry or uploaded PDFs..." 
-                                value={chatInput} 
-                                onChange={e=>setChatInput(e.target.value)}
-                                disabled={isUploading || isAiThinking}
-                            />
-                            <button type="submit" className="text-blue-500 hover:text-blue-400 transition" disabled={isAiThinking || isUploading}><Send size={20}/></button>
-                        </form>
+
+                        {/* Input Form */}
+                        <div className={`p-3 sm:p-4 flex-shrink-0 border-t ${theme==='dark' ? 'border-slate-800/80 bg-slate-900/90' : 'border-slate-200 bg-white/90'}`}>
+                            <form onSubmit={handleChat} className={`flex items-end gap-2 p-1.5 pl-2 rounded-3xl border transition-all shadow-sm ${theme === 'dark' ? 'border-slate-700 bg-slate-800 focus-within:border-blue-500/50 focus-within:ring-1 focus-within:ring-blue-500/20' : 'border-slate-300 bg-slate-50 focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-400/20'}`}>
+                                
+                                <button 
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()} 
+                                    disabled={isUploading}
+                                    className={`p-2 rounded-full transition-colors flex-shrink-0 ${theme === 'dark' ? 'text-slate-400 hover:text-blue-400 hover:bg-blue-500/20' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-500/10'}`}
+                                    title="Upload Context Document"
+                                >
+                                    {isUploading ? <Loader2 size={18} className="animate-spin text-blue-500" /> : <Paperclip size={18} />}
+                                </button>
+                                <input type="file" ref={fileInputRef} className="hidden" accept=".pdf,.txt,.csv,.md" onChange={handleFileUpload} />
+                                
+                                <textarea 
+                                    ref={textareaRef}
+                                    className={`flex-1 bg-transparent text-sm py-2.5 px-2 outline-none resize-none max-h-32 custom-scrollbar placeholder:opacity-50 ${theme==='dark'?'text-white placeholder:text-slate-400':'text-slate-900 placeholder:text-slate-500'}`}
+                                    rows="1"
+                                    placeholder="Message Ion Assist..." 
+                                    value={chatInput} 
+                                    onChange={e => {
+                                        setChatInput(e.target.value);
+                                        e.target.style.height = 'auto';
+                                        e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                                    }}
+                                    onKeyDown={e => {
+                                        if(e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleChat(e);
+                                        }
+                                    }}
+                                    disabled={isUploading || isAiThinking}
+                                />
+                                
+                                <button 
+                                    type="submit" 
+                                    className={`p-2 mb-1 mr-1 rounded-full flex-shrink-0 transition-all ${chatInput.trim() && !isAiThinking && !isUploading ? 'bg-blue-600 text-white hover:bg-blue-500 hover:scale-105 shadow-md shadow-blue-500/20' : 'bg-slate-200 text-slate-400 dark:bg-slate-700/50 dark:text-slate-500 cursor-not-allowed'}`} 
+                                    disabled={!chatInput.trim() || isAiThinking || isUploading}
+                                >
+                                    <Send size={16} className={chatInput.trim() ? 'ml-0.5' : ''}/>
+                                </button>
+                            </form>
+                            <div className="text-center mt-2.5">
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Ion Assist can make mistakes. Verify important information.</span>
+                            </div>
+                        </div>
                     </div>
+
                 </div>
-            )}
-            {!isChatExpanded && (
+            </div>
+
+            {/* Floating Action Button */}
+            {!chatOpen && (
                 <button 
-                    onClick={() => setChatOpen(!chatOpen)} 
-                    className="w-16 h-16 rounded-full shadow-2xl flex items-center justify-center bg-blue-600 text-white hover:scale-105 transition-transform"
+                    onClick={() => setChatOpen(true)} 
+                    className="pointer-events-auto w-14 h-14 sm:w-16 sm:h-16 rounded-full shadow-2xl flex items-center justify-center bg-gradient-to-br from-blue-600 to-indigo-600 text-white hover:scale-110 active:scale-95 transition-all outline-none focus:ring-4 focus:ring-blue-500/30 group relative"
                 >
-                    <Bot size={32}/>
+                    <Bot size={28} className="group-hover:animate-pulse"/>
+                    {/* Unread badge logic could go here */}
                 </button>
             )}
         </div>
