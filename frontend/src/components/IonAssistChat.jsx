@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 
 const IonAssistChat = () => {
     const { theme, nodeDataMap, API_BASE_URL, token } = useApp();
-    
+
     // Chat UI states
     const [chatOpen, setChatOpen] = useState(false);
     const [isChatExpanded, setIsChatExpanded] = useState(false);
@@ -31,7 +31,7 @@ const IonAssistChat = () => {
         const savedSessions = localStorage.getItem('ion_chat_sessions');
         let initialSessions = [];
         if (savedSessions) {
-            try { initialSessions = JSON.parse(savedSessions); } catch(e) {}
+            try { initialSessions = JSON.parse(savedSessions); } catch (e) { }
         }
 
         if (initialSessions.length > 0) {
@@ -41,12 +41,12 @@ const IonAssistChat = () => {
         } else {
             createInitialSession();
         }
-        
+
         fetchKnowledgeBase();
     }, []);
 
     useEffect(() => {
-        if(chatSessions.length > 0) {
+        if (chatSessions.length > 0) {
             localStorage.setItem('ion_chat_sessions', JSON.stringify(chatSessions));
         }
     }, [chatSessions]);
@@ -66,7 +66,7 @@ const IonAssistChat = () => {
             if (data.success) {
                 setKnownDocs(data.files || []);
             }
-        } catch(e) {
+        } catch (e) {
             console.error("Failed to fetch knowledge base", e);
         }
     };
@@ -93,11 +93,11 @@ const IonAssistChat = () => {
             } else {
                 alert("Upload failed: " + data.error);
             }
-        } catch(e) {
+        } catch (e) {
             alert("Error uploading document: " + e.message);
         } finally {
             setIsUploading(false);
-            if(fileInputRef.current) fileInputRef.current.value = '';
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
@@ -168,13 +168,13 @@ const IonAssistChat = () => {
     const handleChat = async (e) => {
         e?.preventDefault();
         if (!chatInput.trim()) return;
-        
+
         const userMsg = chatInput;
         setChatInput('');
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto'; // Reset height
         }
-        
+
         const updatedMessages = [...chatMessages, { role: 'user', text: userMsg }];
         updateCurrentSession(updatedMessages);
         setIsAiThinking(true);
@@ -186,9 +186,9 @@ const IonAssistChat = () => {
         try {
             const response = await fetch(`${API_BASE_URL}/api/chat`, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({ message: userMsg, contextData })
             });
@@ -207,69 +207,69 @@ const IonAssistChat = () => {
 
     return (
         <div className={`fixed transition-all duration-500 z-50 ease-in-out ${isChatExpanded ? 'inset-4 sm:inset-10 w-[calc(100%-2rem)] sm:w-[calc(100%-5rem)] h-[calc(100%-2rem)] sm:h-[calc(100%-5rem)]' : 'bottom-6 right-6 sm:bottom-8 sm:right-8 flex flex-col items-end pointer-events-none'}`}>
-            
+
             <div className={`pointer-events-auto transition-all duration-500 transform origin-bottom-right ${chatOpen ? 'scale-100 opacity-100' : 'scale-90 opacity-0 pointer-events-none'} ${isChatExpanded ? 'w-full h-full rounded-2xl' : 'w-[90vw] sm:w-[420px] h-[75vh] max-h-[750px] mb-4 rounded-3xl'} flex flex-col shadow-2xl overflow-hidden border backdrop-blur-md ${theme === 'dark' ? 'bg-slate-900/95 border-slate-700/60 shadow-slate-900/80' : 'bg-white/95 border-slate-200 shadow-slate-300/60'}`}>
-                
+
                 {/* Header */}
                 <div className={`flex-shrink-0 p-4 shrink-0 flex justify-between items-center z-10 transition-colors ${theme === 'dark' ? 'bg-slate-800 border-b border-slate-700' : 'bg-gradient-to-r from-blue-700 to-indigo-600 text-white'}`}>
                     <div className="flex items-center gap-3">
                         <div className={`p-2 rounded-xl backdrop-blur-sm ${theme === 'dark' ? 'bg-blue-600/20 text-blue-400' : 'bg-white/20 text-white'}`}>
-                            <Bot size={22}/>
+                            <Bot size={22} />
                         </div>
                         <div>
                             <h3 className={`font-bold text-sm tracking-wide ${theme === 'dark' ? 'text-slate-100' : 'text-white'}`}>Ion Assist</h3>
                             <p className={`text-[10px] flex items-center gap-1.5 ${theme === 'dark' ? 'text-slate-400' : 'text-blue-100'}`}>
                                 <span className="relative flex h-2 w-2">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                                 </span>
                                 Gemini RAG Engine
                             </p>
                         </div>
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <button onClick={createNewSession} className={`p-1.5 rounded-lg transition-colors ${theme==='dark'?'hover:bg-slate-700 text-slate-300':'hover:bg-white/20 text-white'}`} title="New Chat"><Plus size={18}/></button>
-                        <button onClick={()=>setIsChatExpanded(!isChatExpanded)} className={`hidden sm:block p-1.5 rounded-lg transition-colors ${theme==='dark'?'hover:bg-slate-700 text-slate-300':'hover:bg-white/20 text-white'}`} title={isChatExpanded ? "Minimize" : "Expand"}>
-                            {isChatExpanded ? <Minimize2 size={18}/> : <Maximize2 size={18}/>}
+                        <button onClick={createNewSession} className={`p-1.5 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-white/20 text-white'}`} title="New Chat"><Plus size={18} /></button>
+                        <button onClick={() => setIsChatExpanded(!isChatExpanded)} className={`hidden sm:block p-1.5 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-white/20 text-white'}`} title={isChatExpanded ? "Minimize" : "Expand"}>
+                            {isChatExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
                         </button>
-                        <button onClick={()=>setChatOpen(false)} className={`p-1.5 rounded-lg transition-colors ${theme==='dark'?'hover:bg-red-500/20 text-slate-300 hover:text-red-400':'hover:bg-white/20 text-white'}`} title="Close Chat"><X size={18}/></button>
+                        <button onClick={() => setChatOpen(false)} className={`p-1.5 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-red-500/20 text-slate-300 hover:text-red-400' : 'hover:bg-white/20 text-white'}`} title="Close Chat"><X size={18} /></button>
                     </div>
                 </div>
 
                 {/* Body Container */}
                 <div className="flex flex-1 min-h-0 relative">
-                    
+
                     {/* Sidebar (Expanded Text Context) */}
                     {isChatExpanded && (
                         <div className={`w-72 hidden sm:flex flex-shrink-0 flex-col border-r transition-colors ${theme === 'dark' ? 'bg-slate-900/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
-                            
+
                             {/* Sessions History */}
-                            <div className={`flex-1 overflow-y-auto border-b ${theme==='dark'?'border-slate-700/50':'border-slate-200'} custom-scrollbar`}>
+                            <div className={`flex-1 overflow-y-auto border-b ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'} custom-scrollbar`}>
                                 <div className="p-4 sticky top-0 backdrop-blur-md z-10 flex items-center justify-between">
-                                    <span className={`font-bold text-xs uppercase tracking-widest ${theme==='dark'?'text-slate-500':'text-slate-400'}`}>History</span>
+                                    <span className={`font-bold text-xs uppercase tracking-widest ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>History</span>
                                 </div>
                                 <div className="px-3 pb-4 space-y-1">
                                     {chatSessions.map(s => (
-                                        <div key={s.id} onClick={()=>switchSession(s.id)} className={`p-3 rounded-xl text-sm cursor-pointer flex justify-between items-center group transition-colors ${currentSessionId === s.id ? (theme==='dark'?'bg-blue-600/20 text-blue-400':'bg-blue-50 text-blue-700 font-medium') : (theme==='dark'?'hover:bg-slate-800 text-slate-400':'hover:bg-slate-200/50 text-slate-600')}`}>
+                                        <div key={s.id} onClick={() => switchSession(s.id)} className={`p-3 rounded-xl text-sm cursor-pointer flex justify-between items-center group transition-colors ${currentSessionId === s.id ? (theme === 'dark' ? 'bg-blue-600/20 text-blue-400' : 'bg-blue-50 text-blue-700 font-medium') : (theme === 'dark' ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-200/50 text-slate-600')}`}>
                                             <span className="truncate pr-2">{s.title}</span>
-                                            <button onClick={(e)=>deleteSession(e, s.id)} className="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity"><Trash2 size={14}/></button>
+                                            <button onClick={(e) => deleteSession(e, s.id)} className="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity"><Trash2 size={14} /></button>
                                         </div>
                                     ))}
                                 </div>
                             </div>
-                            
+
                             {/* Knowledge Base */}
                             <div className="h-[40%] flex flex-col">
                                 <div className="p-4 sticky top-0 backdrop-blur-md z-10 flex items-center gap-2">
-                                    <Database size={14} className={theme==='dark'?'text-slate-500':'text-slate-400'}/> 
-                                    <span className={`font-bold text-xs uppercase tracking-widest ${theme==='dark'?'text-slate-500':'text-slate-400'}`}>Knowledge base</span>
+                                    <Database size={14} className={theme === 'dark' ? 'text-slate-500' : 'text-slate-400'} />
+                                    <span className={`font-bold text-xs uppercase tracking-widest ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Knowledge base</span>
                                 </div>
                                 <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-2 custom-scrollbar">
                                     {knownDocs.length === 0 ? (
-                                        <div className={`text-center py-6 text-xs px-4 ${theme==='dark'?'text-slate-500':'text-slate-400'}`}>No PDF/Text files uploaded yet. Upload data to grant AI extra context.</div>
+                                        <div className={`text-center py-6 text-xs px-4 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>No PDF/Text files uploaded yet. Upload data to grant AI extra context.</div>
                                     ) : (
                                         knownDocs.map((doc, idx) => (
-                                            <div key={idx} className={`flex items-center gap-2 text-xs p-2.5 rounded-xl border transition-colors ${theme==='dark'?'bg-slate-800/40 border-slate-700 text-slate-300':'bg-white border-slate-200 text-slate-600'}`}>
+                                            <div key={idx} className={`flex items-center gap-2 text-xs p-2.5 rounded-xl border transition-colors ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}`}>
                                                 <FileText size={14} className="text-blue-500 flex-shrink-0" />
                                                 <span className="truncate flex-1 font-medium">{doc.original_name}</span>
                                             </div>
@@ -282,11 +282,11 @@ const IonAssistChat = () => {
 
                     {/* Main Chat Area */}
                     <div className="flex-1 flex flex-col min-w-0 h-full">
-                        
+
                         {/* Status bar for unexpanded mode */}
                         {!isChatExpanded && knownDocs.length > 0 && (
                             <div className={`px-4 py-2 flex-shrink-0 text-[10px] flex items-center gap-2 border-b ${theme === 'dark' ? 'bg-slate-800/80 border-slate-700/60 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
-                                <Database size={10} className="text-blue-500"/> {knownDocs.length} custom files active in context
+                                <Database size={10} className="text-blue-500" /> {knownDocs.length} custom files active in context
                             </div>
                         )}
 
@@ -294,36 +294,36 @@ const IonAssistChat = () => {
                         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 custom-scrollbar scroll-smooth">
                             {chatMessages.length === 0 && (
                                 <div className="flex flex-col items-center justify-center h-full text-center opacity-50">
-                                    <Bot size={48} className="mb-4 text-blue-500 opacity-50"/>
+                                    <Bot size={48} className="mb-4 text-blue-500 opacity-50" />
                                     <p className="text-sm">Start a conversation with Ion Assist</p>
                                 </div>
                             )}
-                            
+
                             {chatMessages.map((m, i) => (
-                                <div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}>
+                                <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                     {m.role === 'ai' && (
                                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white mr-3 mt-auto mb-auto flex-shrink-0 shadow-sm">
-                                            <Bot size={16}/>
+                                            <Bot size={16} />
                                         </div>
                                     )}
-                                    <div className={`p-3.5 px-4 rounded-2xl max-w-[85%] text-sm leading-relaxed shadow-sm whitespace-pre-wrap ${m.role==='user' 
-                                        ? 'bg-blue-600 text-white rounded-br-sm' 
-                                        : (theme==='dark' ? 'bg-slate-800 text-slate-200 border border-slate-700/50 rounded-bl-sm' : 'bg-white text-slate-800 border border-slate-100 rounded-bl-sm')}`}>
+                                    <div className={`p-3.5 px-4 rounded-2xl max-w-[85%] text-sm leading-relaxed shadow-sm whitespace-pre-wrap ${m.role === 'user'
+                                        ? 'bg-blue-600 text-white rounded-br-sm'
+                                        : (theme === 'dark' ? 'bg-slate-800 text-slate-200 border border-slate-700/50 rounded-bl-sm' : 'bg-white text-slate-800 border border-slate-100 rounded-bl-sm')}`}>
                                         {m.text}
                                     </div>
                                 </div>
                             ))}
-                            
+
                             {/* Typing Indicator */}
                             {isAiThinking && (
                                 <div className="flex justify-start">
                                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white mr-3 mt-auto mb-auto flex-shrink-0 shadow-sm">
-                                        <Bot size={16}/>
+                                        <Bot size={16} />
                                     </div>
-                                    <div className={`p-4 rounded-2xl rounded-bl-sm border flex gap-1.5 items-center ${theme==='dark'?'bg-slate-800 border-slate-700/50':'bg-white border-slate-100'}`}>
-                                        <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: "0ms"}}></span>
-                                        <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: "150ms"}}></span>
-                                        <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: "300ms"}}></span>
+                                    <div className={`p-4 rounded-2xl rounded-bl-sm border flex gap-1.5 items-center ${theme === 'dark' ? 'bg-slate-800 border-slate-700/50' : 'bg-white border-slate-100'}`}>
+                                        <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
+                                        <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
+                                        <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
                                     </div>
                                 </div>
                             )}
@@ -331,12 +331,12 @@ const IonAssistChat = () => {
                         </div>
 
                         {/* Input Form */}
-                        <div className={`p-3 sm:p-4 flex-shrink-0 border-t ${theme==='dark' ? 'border-slate-800/80 bg-slate-900/90' : 'border-slate-200 bg-white/90'}`}>
+                        <div className={`p-3 sm:p-4 flex-shrink-0 border-t ${theme === 'dark' ? 'border-slate-800/80 bg-slate-900/90' : 'border-slate-200 bg-white/90'}`}>
                             <form onSubmit={handleChat} className={`flex items-end gap-2 p-1.5 pl-2 rounded-3xl border transition-all shadow-sm ${theme === 'dark' ? 'border-slate-700 bg-slate-800 focus-within:border-blue-500/50 focus-within:ring-1 focus-within:ring-blue-500/20' : 'border-slate-300 bg-slate-50 focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-400/20'}`}>
-                                
-                                <button 
+
+                                <button
                                     type="button"
-                                    onClick={() => fileInputRef.current?.click()} 
+                                    onClick={() => fileInputRef.current?.click()}
                                     disabled={isUploading}
                                     className={`p-2 rounded-full transition-colors flex-shrink-0 ${theme === 'dark' ? 'text-slate-400 hover:text-blue-400 hover:bg-blue-500/20' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-500/10'}`}
                                     title="Upload Context Document"
@@ -344,33 +344,33 @@ const IonAssistChat = () => {
                                     {isUploading ? <Loader2 size={18} className="animate-spin text-blue-500" /> : <Paperclip size={18} />}
                                 </button>
                                 <input type="file" ref={fileInputRef} className="hidden" accept=".pdf,.txt,.csv,.md" onChange={handleFileUpload} />
-                                
-                                <textarea 
+
+                                <textarea
                                     ref={textareaRef}
-                                    className={`flex-1 bg-transparent text-sm py-2.5 px-2 outline-none resize-none max-h-32 custom-scrollbar placeholder:opacity-50 ${theme==='dark'?'text-white placeholder:text-slate-400':'text-slate-900 placeholder:text-slate-500'}`}
+                                    className={`flex-1 bg-transparent text-sm py-2.5 px-2 outline-none resize-none max-h-32 custom-scrollbar placeholder:opacity-50 ${theme === 'dark' ? 'text-white placeholder:text-slate-400' : 'text-slate-900 placeholder:text-slate-500'}`}
                                     rows="1"
-                                    placeholder="Message Ion Assist..." 
-                                    value={chatInput} 
+                                    placeholder="Message Ion Assist..."
+                                    value={chatInput}
                                     onChange={e => {
                                         setChatInput(e.target.value);
                                         e.target.style.height = 'auto';
                                         e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
                                     }}
                                     onKeyDown={e => {
-                                        if(e.key === 'Enter' && !e.shiftKey) {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
                                             e.preventDefault();
                                             handleChat(e);
                                         }
                                     }}
                                     disabled={isUploading || isAiThinking}
                                 />
-                                
-                                <button 
-                                    type="submit" 
-                                    className={`p-2 mb-1 mr-1 rounded-full flex-shrink-0 transition-all ${chatInput.trim() && !isAiThinking && !isUploading ? 'bg-blue-600 text-white hover:bg-blue-500 hover:scale-105 shadow-md shadow-blue-500/20' : 'bg-slate-200 text-slate-400 dark:bg-slate-700/50 dark:text-slate-500 cursor-not-allowed'}`} 
+
+                                <button
+                                    type="submit"
+                                    className={`p-2 mb-1 mr-1 rounded-full flex-shrink-0 transition-all ${chatInput.trim() && !isAiThinking && !isUploading ? 'bg-blue-600 text-white hover:bg-blue-500 hover:scale-105 shadow-md shadow-blue-500/20' : 'bg-slate-200 text-slate-400 dark:bg-slate-700/50 dark:text-slate-500 cursor-not-allowed'}`}
                                     disabled={!chatInput.trim() || isAiThinking || isUploading}
                                 >
-                                    <Send size={16} className={chatInput.trim() ? 'ml-0.5' : ''}/>
+                                    <Send size={16} className={chatInput.trim() ? 'ml-0.5' : ''} />
                                 </button>
                             </form>
                             <div className="text-center mt-2.5">
@@ -384,11 +384,11 @@ const IonAssistChat = () => {
 
             {/* Floating Action Button */}
             {!chatOpen && (
-                <button 
-                    onClick={() => setChatOpen(true)} 
+                <button
+                    onClick={() => setChatOpen(true)}
                     className="pointer-events-auto w-14 h-14 sm:w-16 sm:h-16 rounded-full shadow-2xl flex items-center justify-center bg-gradient-to-br from-blue-600 to-indigo-600 text-white hover:scale-110 active:scale-95 transition-all outline-none focus:ring-4 focus:ring-blue-500/30 group relative"
                 >
-                    <Bot size={28} className="group-hover:animate-pulse"/>
+                    <Bot size={28} className="group-hover:animate-pulse" />
                     {/* Unread badge logic could go here */}
                 </button>
             )}
