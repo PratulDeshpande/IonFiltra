@@ -12,9 +12,9 @@ const Auth = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center" style={{backgroundColor: '#0f172a'}}>
-            <div className="w-full max-w-md p-8 rounded-3xl border border-white/10 bg-slate-800 shadow-2xl">
-                <h1 className="text-3xl font-bold text-center mb-8">IONFILTRA <span className="text-blue-500">IOT</span></h1>
+        <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4 sm:p-0" style={{backgroundColor: '#0f172a'}}>
+            <div className="w-full max-w-sm sm:max-w-md p-6 sm:p-8 rounded-3xl border border-white/10 bg-slate-800 shadow-2xl mx-auto">
+                <h1 className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8">IONFILTRA <span className="text-blue-500">IOT</span></h1>
                 <form onSubmit={handleLogin} className="space-y-4">
                     <input 
                         type="text" 

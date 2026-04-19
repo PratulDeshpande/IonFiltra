@@ -16,26 +16,26 @@ const Dashboard = () => {
 
     return (
         <div className={`min-h-screen flex flex-col ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`} style={{ backgroundColor: theme === 'dark' ? '#0f172a' : '#f1f5f9' }}>
-            <header className={`h-20 border-b flex items-center justify-between px-8 ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-                <div className="flex items-center gap-4">
+            <header className={`h-16 sm:h-20 border-b flex items-center justify-between px-4 sm:px-8 ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                <div className="flex items-center gap-2 sm:gap-4">
                     <img
                         src="/logo.png"
                         alt="Ionfiltra Logo"
-                        className={`h-10 transition-all ${theme === 'dark' ? 'bg-white bg-opacity-95 p-1.5 rounded-lg shadow-sm' : ''}`}
+                        className={`h-8 sm:h-10 transition-all ${theme === 'dark' ? 'bg-white bg-opacity-95 p-1 sm:p-1.5 rounded-lg shadow-sm' : ''}`}
                     />
-                    {!isConnected && <span className="ml-4 text-xs bg-red-500/20 text-red-500 px-2 py-1 rounded">Stream Disconnected</span>}
+                    {!isConnected && <span className="ml-2 sm:ml-4 text-[10px] sm:text-xs bg-red-500/20 text-red-500 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">Stream Disconnected</span>}
                 </div>
-                <div className="flex items-center gap-4">
-                    <button onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} className="p-3 rounded-xl hover:bg-blue-500/10 transition">
+                <div className="flex items-center gap-2 sm:gap-4">
+                    <button onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} className="p-2 sm:p-3 rounded-xl hover:bg-blue-500/10 transition">
                         {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
                     </button>
-                    <button onClick={logout} className="p-3 rounded-xl text-red-500 hover:bg-red-500/10 transition">
+                    <button onClick={logout} className="p-2 sm:p-3 rounded-xl text-red-500 hover:bg-red-500/10 transition">
                         <LogOut size={20} />
                     </button>
                 </div>
             </header>
 
-            <main className="flex-1 p-8 flex flex-col">
+            <main className="flex-1 p-4 sm:p-6 lg:p-8 flex flex-col">
                 {activeNodes.length === 0 ? (
                     <div className="flex-1 flex flex-col items-center justify-center opacity-40">
                         <Activity size={48} className="mb-4 animate-pulse" />
@@ -43,7 +43,7 @@ const Dashboard = () => {
                         <p className="text-sm">No sensor nodes are currently transmitting data to the database.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 max-w-[2000px] mx-auto w-full">
                         {activeNodes.map(nodeId => (
                             <NodeCard
                                 key={nodeId}

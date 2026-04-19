@@ -206,13 +206,13 @@ const IonAssistChat = () => {
     };
 
     return (
-        <div className={`fixed transition-all duration-500 z-50 ease-in-out ${isChatExpanded ? 'inset-4 sm:inset-10 w-[calc(100%-2rem)] sm:w-[calc(100%-5rem)] h-[calc(100%-2rem)] sm:h-[calc(100%-5rem)]' : 'bottom-6 right-6 sm:bottom-8 sm:right-8 flex flex-col items-end pointer-events-none'}`}>
+        <div className={`fixed transition-all duration-500 z-50 ease-in-out ${isChatExpanded ? 'inset-4 sm:inset-10 w-[calc(100%-1rem)] sm:w-[calc(100%-5rem)] h-[calc(100%-1rem)] sm:h-[calc(100%-5rem)]' : 'bottom-4 right-4 sm:bottom-8 sm:right-8 flex flex-col items-end pointer-events-none'}`}>
 
-            <div className={`pointer-events-auto transition-all duration-500 transform origin-bottom-right ${chatOpen ? 'scale-100 opacity-100' : 'scale-90 opacity-0 pointer-events-none'} ${isChatExpanded ? 'w-full h-full rounded-2xl' : 'w-[90vw] sm:w-[420px] h-[75vh] max-h-[750px] mb-4 rounded-3xl'} flex flex-col shadow-2xl overflow-hidden border backdrop-blur-md ${theme === 'dark' ? 'bg-slate-900/95 border-slate-700/60 shadow-slate-900/80' : 'bg-white/95 border-slate-200 shadow-slate-300/60'}`}>
+            <div className={`pointer-events-auto transition-all duration-500 transform origin-bottom-right ${chatOpen ? 'scale-100 opacity-100' : 'scale-90 opacity-0 pointer-events-none'} ${isChatExpanded ? 'w-full h-full rounded-2xl' : 'w-[95vw] sm:w-[420px] h-[80vh] sm:h-[75vh] max-h-[750px] mb-4 rounded-3xl'} flex flex-col shadow-2xl overflow-hidden border backdrop-blur-md ${theme === 'dark' ? 'bg-slate-900/95 border-slate-700/60 shadow-slate-900/80' : 'bg-white/95 border-slate-200 shadow-slate-300/60'}`}>
 
                 {/* Header */}
-                <div className={`flex-shrink-0 p-4 shrink-0 flex justify-between items-center z-10 transition-colors ${theme === 'dark' ? 'bg-slate-800 border-b border-slate-700' : 'bg-gradient-to-r from-blue-700 to-indigo-600 text-white'}`}>
-                    <div className="flex items-center gap-3">
+                <div className={`flex-shrink-0 p-3 sm:p-4 shrink-0 flex justify-between items-center z-10 transition-colors ${theme === 'dark' ? 'bg-slate-800 border-b border-slate-700' : 'bg-gradient-to-r from-blue-700 to-indigo-600 text-white'}`}>
+                    <div className="flex items-center gap-2 sm:gap-3">
                         <div className={`p-2 rounded-xl backdrop-blur-sm ${theme === 'dark' ? 'bg-blue-600/20 text-blue-400' : 'bg-white/20 text-white'}`}>
                             <Bot size={22} />
                         </div>
