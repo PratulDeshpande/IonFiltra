@@ -108,12 +108,12 @@ const NodeCard = ({ nodeId, data, isPlaceholder }) => {
 
     return (
         <div className={`rounded-3xl overflow-hidden border shadow-xl flex flex-col ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-            <div className={`px-4 sm:px-6 py-3 sm:py-4 border-b flex justify-between items-center ${theme === 'dark' ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                <div className="flex items-center gap-2 sm:gap-3">
+            <div className={`px-4 sm:px-6 py-3 sm:py-4 border-b flex flex-wrap gap-3 justify-between items-center ${theme === 'dark' ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                     <div className={`p-1.5 sm:p-2 rounded-lg text-white shadow-sm ${isPlaceholder ? 'bg-slate-500' : 'bg-blue-600'}`}><Cpu size={18} className="sm:w-5 sm:h-5"/></div>
-                    <h3 className="font-bold text-base sm:text-lg">{nodeId}</h3>
+                    <h3 className="font-bold text-base sm:text-lg truncate max-w-[150px] sm:max-w-none">{nodeId}</h3>
                 </div>
-                <div className="flex bg-slate-800/10 rounded-lg p-1">
+                <div className="flex bg-slate-800/10 rounded-lg p-1 shrink-0 z-10 relative">
                     <button onClick={() => setTab('overview')} className={`px-2 sm:px-3 py-1 rounded-md text-[10px] sm:text-xs font-bold transition shadow-sm ${tab === 'overview' ? 'bg-blue-600 text-white' : 'opacity-50 hover:opacity-100'}`}>Overview</button>
                     <button onClick={() => setTab('analytics')} className={`px-2 sm:px-3 py-1 rounded-md text-[10px] sm:text-xs font-bold transition shadow-sm ${tab === 'analytics' ? 'bg-blue-600 text-white' : 'opacity-50 hover:opacity-100'}`}>Diagnostics</button>
                 </div>

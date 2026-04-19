@@ -237,11 +237,11 @@ const IonAssistChat = () => {
                 </div>
 
                 {/* Body Container */}
-                <div className="flex flex-1 min-h-0 relative">
+                <div className="flex flex-col sm:flex-row flex-1 min-h-0 relative">
 
                     {/* Sidebar (Expanded Text Context) */}
                     {isChatExpanded && (
-                        <div className={`w-72 hidden sm:flex flex-shrink-0 flex-col border-r transition-colors ${theme === 'dark' ? 'bg-slate-900/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+                        <div className={`w-full sm:w-72 flex h-[35%] sm:h-full flex-shrink-0 flex-col sm:border-r border-b sm:border-b-0 transition-colors ${theme === 'dark' ? 'bg-slate-900/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
 
                             {/* Sessions History */}
                             <div className={`flex-1 overflow-y-auto border-b ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'} custom-scrollbar`}>
