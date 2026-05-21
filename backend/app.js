@@ -71,15 +71,6 @@ app.post('/api/logout', (req, res) => {
     res.json({ success: true });
 });
 
-app.get('/api/me', (req, res) => {
-    const cookieToken = req.cookies ? req.cookies.ion_auth : null;
-    if (!cookieToken) return res.status(401).json({ error: 'Not authenticated' });
-    jwt.verify(cookieToken, JWT_SECRET, (err, decoded) => {
-        if (err) return res.status(401).json({ error: 'Token is invalid' });
-        res.json({ success: true, user: { name: decoded.username, role: decoded.role, org_id: decoded.org_id } });
-    });
-});
-
 const verifyToken = (req, res, next) => {
     const authHeader = req.headers.authorization;
     const queryToken = req.query.token;
@@ -99,6 +90,10 @@ const verifyToken = (req, res, next) => {
         next();
     });
 };
+
+app.get('/api/me', verifyToken, (req, res) => {
+    res.json({ success: true, user: req.user });
+});
 
 // --- SSE SETUP ---
 let clients = [];
