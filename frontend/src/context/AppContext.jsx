@@ -25,21 +25,30 @@ export const AppProvider = ({ children }) => {
         }
     }, [theme]);
 
-    // Initial auth check via Cookie
+    // Initial auth check via LocalStorage Token
     useEffect(() => {
         if (isInitialized.current) return;
         isInitialized.current = true;
 
         const checkAuth = async () => {
+            const storedToken = localStorage.getItem('ion_token');
+            if (!storedToken) return;
+            setToken(storedToken);
+
             try {
-                const res = await fetch(`${API_BASE_URL}/api/me`, { credentials: 'include' });
+                const res = await fetch(`${API_BASE_URL}/api/me`, { 
+                    headers: { 'Authorization': `Bearer ${storedToken}` } 
+                });
                 const data = await res.json();
                 if (data.success && data.user) {
                     setUser(data.user);
                     setView('location');
+                } else {
+                    localStorage.removeItem('ion_token');
                 }
             } catch (err) {
                 console.error("Not authenticated");
+                localStorage.removeItem('ion_token');
             }
         };
         checkAuth();
@@ -47,7 +56,7 @@ export const AppProvider = ({ children }) => {
 
     // Fetch initial history and streaming when entering dashboard
     useEffect(() => {
-        if (view !== 'dashboard' || !user) {
+        if (view !== 'dashboard' || !user || !token) {
             if (eventSourceRef.current) {
                 eventSourceRef.current.close();
                 setIsConnected(false);
@@ -57,7 +66,7 @@ export const AppProvider = ({ children }) => {
 
         // Fetch History
         fetch(`${API_BASE_URL}/api/data`, {
-            credentials: 'include'
+            headers: { 'Authorization': `Bearer ${token}` }
         })
             .then(res => res.json())
             .then(json => {
@@ -72,8 +81,8 @@ export const AppProvider = ({ children }) => {
                 }
             }).catch(err => console.error("Initial data load error:", err));
 
-        // Connect SSE with secure cookies
-        const eventSource = new EventSource(`${API_BASE_URL}/api/stream`, { withCredentials: true });
+        // Connect SSE with query token
+        const eventSource = new EventSource(`${API_BASE_URL}/api/stream?token=${token}`);
         eventSourceRef.current = eventSource;
 
         eventSource.onopen = () => setIsConnected(true);
@@ -98,19 +107,20 @@ export const AppProvider = ({ children }) => {
         return () => {
             if (eventSourceRef.current) eventSourceRef.current.close();
         };
-    }, [view, user]);
+    }, [view, user, token]);
 
     const login = async (username, password) => {
         try {
             const res = await fetch(`${API_BASE_URL}/api/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
                 body: JSON.stringify({ username, password })
             });
             const data = await res.json();
             if (data.success) {
                 setUser(data.user);
+                setToken(data.token);
+                localStorage.setItem('ion_token', data.token);
                 setView('location');
                 return true;
             } else {
@@ -124,10 +134,15 @@ export const AppProvider = ({ children }) => {
 
     const logout = async () => {
         try {
-            await fetch(`${API_BASE_URL}/api/logout`, { method: 'POST', credentials: 'include' });
+            await fetch(`${API_BASE_URL}/api/logout`, { 
+                method: 'POST', 
+                headers: { 'Authorization': `Bearer ${token}` } 
+            });
         } catch (e) { console.error(e); }
         
         setUser(null);
+        setToken(null);
+        localStorage.removeItem('ion_token');
         setNodeDataMap({});
         setSelectedLocation(null);
         setView('login');

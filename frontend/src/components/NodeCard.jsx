@@ -81,7 +81,7 @@ const NodeCard = ({ nodeId, data, isPlaceholder }) => {
         if (safeData.length === 0) return alert("System currently in standby.");
         try {
             const response = await fetch(`${API_BASE_URL}/api/export/${nodeId}`, {
-                credentials: 'include'
+                headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!response.ok) throw new Error("Export failed");
 

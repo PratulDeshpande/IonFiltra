@@ -53,8 +53,13 @@ app.post('/api/login', async (req, res) => {
         
         const token = jwt.sign({ username: user.username, role: user.role, org_id: user.organization_id }, JWT_SECRET, { expiresIn: '12h' });
         
-        // Secure HttpOnly cookie
-        res.cookie('ion_auth', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 12 * 60 * 60 * 1000 });
+        // Secure HttpOnly cookie configured for Cross-Origin (Vercel -> Render)
+        res.cookie('ion_auth', token, { 
+            httpOnly: true, 
+            secure: true, 
+            sameSite: 'none', 
+            maxAge: 12 * 60 * 60 * 1000 
+        });
         res.json({ success: true, token, user: { name: user.username, role: user.role, org_id: user.organization_id } });
     } catch (e) {
         res.status(500).json({ error: e.message });
