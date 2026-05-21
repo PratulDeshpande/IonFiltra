@@ -60,7 +60,7 @@ const IonAssistChat = () => {
     const fetchKnowledgeBase = async () => {
         try {
             const res = await fetch(`${API_BASE_URL}/api/knowledge`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
             const data = await res.json();
             if (data.success) {
@@ -82,7 +82,7 @@ const IonAssistChat = () => {
         try {
             const res = await fetch(`${API_BASE_URL}/api/upload_knowledge`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` },
+                credentials: 'include',
                 body: formData
             });
             const data = await res.json();
@@ -187,9 +187,9 @@ const IonAssistChat = () => {
             const response = await fetch(`${API_BASE_URL}/api/chat`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify({ message: userMsg, contextData })
             });
             const data = await response.json();

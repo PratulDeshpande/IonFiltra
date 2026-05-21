@@ -25,24 +25,29 @@ export const AppProvider = ({ children }) => {
         }
     }, [theme]);
 
-    // Initial auth check
+    // Initial auth check via Cookie
     useEffect(() => {
         if (isInitialized.current) return;
         isInitialized.current = true;
 
-        const storedToken = localStorage.getItem('ion_token');
-        const storedUser = localStorage.getItem('ion_user');
-
-        if (storedToken && storedUser) {
-            setToken(storedToken);
-            setUser(JSON.parse(storedUser));
-            setView('location');
-        }
+        const checkAuth = async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/me`, { credentials: 'include' });
+                const data = await res.json();
+                if (data.success && data.user) {
+                    setUser(data.user);
+                    setView('location');
+                }
+            } catch (err) {
+                console.error("Not authenticated");
+            }
+        };
+        checkAuth();
     }, []);
 
     // Fetch initial history and streaming when entering dashboard
     useEffect(() => {
-        if (view !== 'dashboard' || !token) {
+        if (view !== 'dashboard' || !user) {
             if (eventSourceRef.current) {
                 eventSourceRef.current.close();
                 setIsConnected(false);
@@ -52,7 +57,7 @@ export const AppProvider = ({ children }) => {
 
         // Fetch History
         fetch(`${API_BASE_URL}/api/data`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            credentials: 'include'
         })
             .then(res => res.json())
             .then(json => {
@@ -67,8 +72,8 @@ export const AppProvider = ({ children }) => {
                 }
             }).catch(err => console.error("Initial data load error:", err));
 
-        // Connect SSE with token in query
-        const eventSource = new EventSource(`${API_BASE_URL}/api/stream?token=${token}`);
+        // Connect SSE with secure cookies
+        const eventSource = new EventSource(`${API_BASE_URL}/api/stream`, { withCredentials: true });
         eventSourceRef.current = eventSource;
 
         eventSource.onopen = () => setIsConnected(true);
@@ -93,21 +98,19 @@ export const AppProvider = ({ children }) => {
         return () => {
             if (eventSourceRef.current) eventSourceRef.current.close();
         };
-    }, [view, token]);
+    }, [view, user]);
 
     const login = async (username, password) => {
         try {
             const res = await fetch(`${API_BASE_URL}/api/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({ username, password })
             });
             const data = await res.json();
             if (data.success) {
-                setToken(data.token);
                 setUser(data.user);
-                localStorage.setItem('ion_token', data.token);
-                localStorage.setItem('ion_user', JSON.stringify(data.user));
                 setView('location');
                 return true;
             } else {
@@ -119,13 +122,14 @@ export const AppProvider = ({ children }) => {
         }
     };
 
-    const logout = () => {
+    const logout = async () => {
+        try {
+            await fetch(`${API_BASE_URL}/api/logout`, { method: 'POST', credentials: 'include' });
+        } catch (e) { console.error(e); }
+        
         setUser(null);
-        setToken(null);
         setNodeDataMap({});
         setSelectedLocation(null);
-        localStorage.removeItem('ion_token');
-        localStorage.removeItem('ion_user');
         setView('login');
     };
 

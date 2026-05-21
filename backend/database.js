@@ -47,17 +47,62 @@ pool.query('SELECT NOW()', async (err, res) => {
     console.log('✅ Connected to Postgres Core Engine - Time:', res.rows[0].now);
 
     try {
+      // Auto-build Organizations table
+      await pool.query(`
+            CREATE TABLE IF NOT EXISTS organizations (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+      `);
+
+      // Auto-build Users table
+      await pool.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(255) UNIQUE NOT NULL,
+                email VARCHAR(255),
+                password_hash VARCHAR(255) NOT NULL,
+                organization_id INTEGER REFERENCES organizations(id),
+                role VARCHAR(50) DEFAULT 'operator',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+      `);
+
       // Auto-build Telemetry table for empty Supabase instances
       await pool.query(`
             CREATE TABLE IF NOT EXISTS sensor_readings (
                 id SERIAL PRIMARY KEY,
+                organization_id INTEGER REFERENCES organizations(id),
                 node_id INTEGER NOT NULL,
-                dp NUMERIC DEFAULT 0,
-                t_in NUMERIC DEFAULT 0,
-                t_out NUMERIC DEFAULT 0,
-                p_header NUMERIC DEFAULT 0,
-                pm NUMERIC DEFAULT 0,
-                cleaning BOOLEAN DEFAULT FALSE,
+                timer_slave_id INTEGER,
+                relay_no INTEGER,
+                ch_status INTEGER,
+                svf_rly_stat BOOLEAN,
+                sys_ok BOOLEAN,
+                system_on BOOLEAN,
+                plc_interlock BOOLEAN,
+                dp_interlock BOOLEAN,
+                ip3_interlock BOOLEAN,
+                plc_interlock_stat BOOLEAN,
+                dp_interlock_stat BOOLEAN,
+                ip3_interlock_stat BOOLEAN,
+                parallel_purge_mode BOOLEAN,
+                ch_open_1_16 INTEGER,
+                ch_open_17_32 INTEGER,
+                ch_open_33_48 INTEGER,
+                ch_short_1_16 INTEGER,
+                baud_rate INTEGER,
+                reserved INTEGER,
+                on_time_unit INTEGER,
+                on_time_lower_limit INTEGER,
+                on_time_higher_limit INTEGER,
+                off_time_unit INTEGER,
+                off_time_lower_limit INTEGER,
+                off_time_higher_limit INTEGER,
+                pause_time_unit INTEGER,
+                pause_time_lower_limit INTEGER,
+                pause_time_higher_limit INTEGER,
                 rssi INTEGER DEFAULT 0,
                 snr NUMERIC DEFAULT 0,
                 timestamp BIGINT,
@@ -70,6 +115,7 @@ pool.query('SELECT NOW()', async (err, res) => {
       await pool.query(`
             CREATE TABLE IF NOT EXISTS knowledge_files (
                 id SERIAL PRIMARY KEY,
+                organization_id INTEGER REFERENCES organizations(id),
                 original_name TEXT,
                 local_path TEXT,
                 mime_type TEXT,
