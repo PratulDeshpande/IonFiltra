@@ -11,6 +11,7 @@ export const AppProvider = ({ children }) => {
     const [selectedLocation, setSelectedLocation] = useState(null);
     const [nodeDataMap, setNodeDataMap] = useState({});
     const [isConnected, setIsConnected] = useState(false);
+    const [isInitializing, setIsInitializing] = useState(true);
 
     const isInitialized = useRef(false);
     const eventSourceRef = useRef(null);
@@ -32,7 +33,10 @@ export const AppProvider = ({ children }) => {
 
         const checkAuth = async () => {
             const storedToken = localStorage.getItem('ion_token');
-            if (!storedToken) return;
+            if (!storedToken) {
+                setIsInitializing(false);
+                return;
+            }
             setToken(storedToken);
 
             try {
@@ -49,6 +53,8 @@ export const AppProvider = ({ children }) => {
             } catch (err) {
                 console.error("Not authenticated");
                 localStorage.removeItem('ion_token');
+            } finally {
+                setIsInitializing(false);
             }
         };
         checkAuth();
@@ -165,6 +171,7 @@ export const AppProvider = ({ children }) => {
             user, token, login, logout,
             selectedLocation, selectLocation,
             nodeDataMap, isConnected,
+            isInitializing,
             API_BASE_URL
         }}>
             {children}
