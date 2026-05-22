@@ -5,8 +5,9 @@ const { GoogleGenAI } = require('@google/genai');
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-    port: process.env.SMTP_PORT || 587,
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: 465,
+    secure: true, // Use SSL/TLS out of the box
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
@@ -79,7 +80,7 @@ async function runPredictiveAnalysis() {
             if (analysis.needsAlert) {
                 console.log(`[PREDICTIVE AI] Anomalies detected for ${org.name}. Initiating reporting...`);
                 
-                const adminsResult = await pool.query(`SELECT email FROM users WHERE organization_id = $1 AND role = 'admin'`, [org.id]);
+                const adminsResult = await pool.query(`SELECT email FROM users WHERE organization_id = $1 AND email IS NOT NULL`, [org.id]);
                 const emailList = adminsResult.rows.map(u => u.email).filter(e => e).join(', ');
                 
                 if (!emailList) continue;

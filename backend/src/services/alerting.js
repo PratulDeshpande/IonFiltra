@@ -2,8 +2,9 @@ const nodemailer = require('nodemailer');
 const pool = require('../../database');
 
 const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-    port: process.env.SMTP_PORT || 587,
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: 465,
+    secure: true, // Use SSL/TLS out of the box
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
@@ -33,9 +34,9 @@ async function checkAndSendAlerts(data) {
     console.log(`[ALERT ENGINE] Fault detected for Node ${data.node_id}. Initiating webhook sequence...`);
 
     try {
-        // Find admins for this org
-        const r = await pool.query(`SELECT email FROM users WHERE organization_id = $1 AND role = 'admin'`, [data.organization_id]);
-        if (r.rows.length === 0) return console.log(`[ALERT ENGINE] No admins found for Org ${data.organization_id}.`);
+        // Find all users with emails for this org (admins & operators)
+        const r = await pool.query(`SELECT email FROM users WHERE organization_id = $1 AND email IS NOT NULL`, [data.organization_id]);
+        if (r.rows.length === 0) return console.log(`[ALERT ENGINE] No users with emails found for Org ${data.organization_id}.`);
 
         const emailList = r.rows.map(u => u.email).filter(e => e).join(', ');
         if (!emailList) return console.log(`[ALERT ENGINE] Admins found, but no emails registered.`);
