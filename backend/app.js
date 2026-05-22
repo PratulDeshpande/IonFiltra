@@ -1,3 +1,7 @@
+// Force IPv4 for external connections (Fixes Render Nodemailer ENETUNREACH IPv6 bug)
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+
 const express = require('express');
 const cors = require('cors');
 const pool = require('./database');
@@ -7,13 +11,9 @@ const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcrypt');
 const cookieParser = require('cookie-parser');
-const dns = require('dns');
 const { GoogleGenAI } = require('@google/genai');
 const { checkAndSendAlerts } = require('./src/services/alerting');
 const { runPredictiveAnalysis } = require('./src/services/predictive');
-
-// Force IPv4 for external connections (Fixes Render Nodemailer ENETUNREACH IPv6 bug)
-dns.setDefaultResultOrder('ipv4first');
 
 const app = express();
 const PORT = process.env.PORT || 3000;

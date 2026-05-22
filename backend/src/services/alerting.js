@@ -5,6 +5,7 @@ const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: 465,
     secure: true, // Use SSL/TLS out of the box
+    family: 4, // Force IPv4 (Bypass Render IPv6 ENETUNREACH)
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
