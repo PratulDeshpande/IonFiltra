@@ -1,16 +1,4 @@
-const nodemailer = require('nodemailer');
 const pool = require('../../database');
-
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: 465,
-    secure: true, // Use SSL/TLS out of the box
-    family: 4, // Force IPv4 (Bypass Render IPv6 ENETUNREACH)
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-    }
-});
 
 async function checkAndSendAlerts(data) {
     let faultMessages = [];
@@ -32,28 +20,32 @@ async function checkAndSendAlerts(data) {
 
     if (faultMessages.length === 0) return; // No faults
 
-    console.log(`[ALERT ENGINE] Fault detected for Node ${data.node_id}. Initiating webhook sequence...`);
+    console.log(`[ALERT ENGINE] Fault detected for Node ${data.node_id}. Initiating HTTPS webhook sequence...`);
 
     try {
-        // Find all users with emails for this org (admins & operators)
         const r = await pool.query(`SELECT email FROM users WHERE organization_id = $1 AND email IS NOT NULL`, [data.organization_id]);
         if (r.rows.length === 0) return console.log(`[ALERT ENGINE] No users with emails found for Org ${data.organization_id}.`);
 
-        const emailList = r.rows.map(u => u.email).filter(e => e).join(', ');
-        if (!emailList) return console.log(`[ALERT ENGINE] Admins found, but no emails registered.`);
+        const emailList = r.rows.map(u => u.email).filter(e => e).join(',');
+        if (!emailList) return console.log(`[ALERT ENGINE] No valid emails registered.`);
 
-        const mailOptions = {
-            from: process.env.SMTP_USER || '"Ion Filtra Alerts" <alerts@ionfiltra.com>',
-            to: emailList,
-            subject: `🚨 Ion Filtra Alert: Node ${data.node_id} Fault Detected`,
-            text: `Attention Admin,\n\nFaults have been detected on Node ${data.node_id} (Timer Slave ${data.timer_slave_id}).\n\nDetails:\n${faultMessages.join('\n')}\n\nPlease check the dashboard immediately.\n\nTimestamp: ${new Date(data.created_at).toISOString()}`
-        };
+        const subject = `🚨 Ion Filtra Alert: Node ${data.node_id} Fault Detected`;
+        const text = `Attention Operator,\n\nFaults have been detected on Node ${data.node_id} (Timer Slave ${data.timer_slave_id}).\n\nDetails:\n${faultMessages.join('\n')}\n\nPlease check the dashboard immediately.\n\nTimestamp: ${new Date(data.created_at).toISOString()}`;
 
-        if (!process.env.SMTP_USER) {
-            console.log(`[ALERT ENGINE] Development Mode - Email payload that would be sent to [${emailList}]:\n\n${mailOptions.text}\n`);
+        const webhookUrl = process.env.GOOGLE_WEBHOOK_URL;
+
+        if (!webhookUrl) {
+            console.log(`[ALERT ENGINE] Development Mode - Email payload that would be sent to [${emailList}]:\n\n${text}\n`);
         } else {
-            await transporter.sendMail(mailOptions);
-            console.log(`[ALERT ENGINE] Alert successfully emailed to: ${emailList}`);
+            // Bypass Render SMTP Block using HTTPS POST
+            const res = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ to: emailList, subject: subject, body: text })
+            });
+
+            if (!res.ok) throw new Error(`Webhook failed with status: ${res.status}`);
+            console.log(`[ALERT ENGINE] Alert successfully securely transmitted to Google API!`);
         }
     } catch (e) {
         console.error(`[ALERT ENGINE] Failed to process alerts:`, e);

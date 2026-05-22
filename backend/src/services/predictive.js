@@ -1,19 +1,7 @@
-const nodemailer = require('nodemailer');
 const pool = require('../../database');
 const { GoogleGenAI } = require('@google/genai');
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: 465,
-    secure: true, // Use SSL/TLS out of the box
-    family: 4, // Force IPv4 (Bypass Render IPv6 ENETUNREACH)
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-    }
-});
 
 async function runPredictiveAnalysis() {
     console.log("[PREDICTIVE AI] Starting 24h cron analysis...");
@@ -79,25 +67,28 @@ async function runPredictiveAnalysis() {
             }
 
             if (analysis.needsAlert) {
-                console.log(`[PREDICTIVE AI] Anomalies detected for ${org.name}. Initiating reporting...`);
+                console.log(`[PREDICTIVE AI] Anomalies detected for ${org.name}. Initiating HTTPS reporting...`);
                 
                 const adminsResult = await pool.query(`SELECT email FROM users WHERE organization_id = $1 AND email IS NOT NULL`, [org.id]);
-                const emailList = adminsResult.rows.map(u => u.email).filter(e => e).join(', ');
+                const emailList = adminsResult.rows.map(u => u.email).filter(e => e).join(',');
                 
                 if (!emailList) continue;
 
-                const mailOptions = {
-                    from: process.env.SMTP_USER || '"Ion Filtra AI" <ai@ionfiltra.com>',
-                    to: emailList,
-                    subject: `🧠 Predictive Maintenance Report: ${org.name}`,
-                    text: `Daily AI Diagnostic Report\n\nOrganization: ${org.name}\nRecords Analyzed: ${dataResult.rows.length}\n\n⚠️ AI Summary:\n${analysis.summary}\n\n🔧 Recommendation:\n${analysis.recommendation}\n\nLog in to your dashboard to review the historical charts.`
-                };
+                const subject = `🧠 Predictive Maintenance Report: ${org.name}`;
+                const text = `Daily AI Diagnostic Report\n\nOrganization: ${org.name}\nRecords Analyzed: ${dataResult.rows.length}\n\n⚠️ AI Summary:\n${analysis.summary}\n\n🔧 Recommendation:\n${analysis.recommendation}\n\nLog in to your dashboard to review the historical charts.`;
 
-                if (!process.env.SMTP_USER) {
-                    console.log(`[PREDICTIVE AI] Dev Mode Payload -> [${emailList}]:\n\n${mailOptions.text}\n`);
+                const webhookUrl = process.env.GOOGLE_WEBHOOK_URL;
+
+                if (!webhookUrl) {
+                    console.log(`[PREDICTIVE AI] Dev Mode Payload -> [${emailList}]:\n\n${text}\n`);
                 } else {
-                    await transporter.sendMail(mailOptions);
-                    console.log(`[PREDICTIVE AI] Report emailed to ${emailList}`);
+                    const res = await fetch(webhookUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ to: emailList, subject: subject, body: text })
+                    });
+                    if (!res.ok) throw new Error(`Webhook failed with status: ${res.status}`);
+                    console.log(`[PREDICTIVE AI] Report seamlessly transmitted to Google API!`);
                 }
             } else {
                 console.log(`[PREDICTIVE AI] System healthy for ${org.name}. No alert needed.`);
