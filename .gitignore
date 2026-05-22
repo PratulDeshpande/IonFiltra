@@ -1,10 +1,35 @@
+# Dependencies
 node_modules/
-.env
-ngrok.exe
-uploads/
-frontend/dist/
-frontend/node_modules/
 backend/node_modules/
+frontend/node_modules/
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+frontend/.env
+
+# Build Artifacts
+frontend/dist/
+frontend/build/
+backend/dist/
 *.log
+npm-debug.log*
+
+# Uploads & Data
+uploads/
+backend/uploads/
+*.sqlite
+*.sqlite3
+
+# OS & Editor
 .DS_Store
-Vercel_Deployment_Guide
+.vscode/
+.idea/
+
+# Executables
+ngrok.exe
+*.exe

@@ -7,9 +7,13 @@ const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcrypt');
 const cookieParser = require('cookie-parser');
+const dns = require('dns');
 const { GoogleGenAI } = require('@google/genai');
 const { checkAndSendAlerts } = require('./src/services/alerting');
 const { runPredictiveAnalysis } = require('./src/services/predictive');
+
+// Force IPv4 for external connections (Fixes Render Nodemailer ENETUNREACH IPv6 bug)
+dns.setDefaultResultOrder('ipv4first');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -167,8 +171,8 @@ app.post('/api/ingest', verifyToken, async (req, res) => {
             
             if (isFresh) {
                 broadcastData({ ...saved, device_id: `Node-${saved.node_id}` }, saved.organization_id);
-                // Fire and forget the alert engine for fresh faults only
-                checkAndSendAlerts(saved);
+                // Fire and forget the alert engine with a global catch wrapper
+                checkAndSendAlerts(saved).catch(err => console.error("[CRITICAL] Unhandled Alert Engine Error:", err));
             }
         }
         res.json({ success: true, count: insertedIds.length, ids: insertedIds });
@@ -184,8 +188,8 @@ app.get('/api/cron/predict', async (req, res) => {
         return res.status(403).json({ error: "Unauthorized cron execution" });
     }
 
-    // Run asynchronously, don't block the request
-    runPredictiveAnalysis();
+    // Run asynchronously, don't block the request. Wrap in catch to prevent unhandled rejections.
+    runPredictiveAnalysis().catch(err => console.error("[CRITICAL] Unhandled Predictive Engine Error:", err));
     
     res.json({ success: true, message: "Predictive analysis sequence initiated" });
 });
@@ -256,7 +260,8 @@ app.get('/api/knowledge', verifyToken, async (req, res) => {
 // --- HYBRID AI ENDPOINT (GEMINI) ---
 app.post('/api/chat', verifyToken, async (req, res) => {
     const { message, contextData } = req.body;
-    const lowerMsg = message.toLowerCase();
+    const safeMessage = message || '';
+    const lowerMsg = safeMessage.toLowerCase();
     const org_id = req.user.org_id || 1;
 
     // 0. GREETING PATH
