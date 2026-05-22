@@ -41,7 +41,7 @@ async function createUser() {
         await pool.query(
             `INSERT INTO users (username, email, password_hash, organization_id, role) 
              VALUES ($1, $2, $3, $4, $5)`,
-            [username, `${username}@globalindustries.com`, hash, orgId, role]
+            [username, `${username}@gmail.com`, hash, orgId, role]
         );
 
         console.log("✅ User created successfully!");
