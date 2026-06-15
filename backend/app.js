@@ -14,11 +14,33 @@ const cookieParser = require('cookie-parser');
 const { GoogleGenAI } = require('@google/genai');
 const { checkAndSendAlerts } = require('./src/services/alerting');
 const { runPredictiveAnalysis } = require('./src/services/predictive');
+const { enforceDataRetention } = require('./src/services/dataRetention');
+const { rateLimit } = require('./src/middleware/rateLimiter');
+const { toBool, toNum } = require('./src/helpers');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_ionfiltra_key';
-const HARDWARE_TOKEN = process.env.HARDWARE_TOKEN || 'ion_sensor_hw_token_2026_never_expires';
+const JWT_SECRET = process.env.JWT_SECRET;
+const HARDWARE_TOKEN = process.env.HARDWARE_TOKEN;
+
+if (!JWT_SECRET) {
+    console.error('❌ FATAL: JWT_SECRET environment variable is required.');
+    process.exit(1);
+}
+if (!HARDWARE_TOKEN) {
+    console.error('❌ FATAL: HARDWARE_TOKEN environment variable is required.');
+    process.exit(1);
+}
+
+// --- ERROR RESPONSE HELPER ---
+const sendError = (res, status, message, details = null) => {
+    const response = {
+        success: false,
+        error: message,
+        ...(details && process.env.NODE_ENV !== 'production' && { details })
+    };
+    return res.status(status).json(response);
+};
 
 // Gemini Client
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -45,7 +67,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 // --- AUTHENTICATION ---
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', rateLimit('login', 5, 60000), async (req, res) => {
     const { username, password } = req.body;
     try {
         const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
@@ -66,7 +88,7 @@ app.post('/api/login', async (req, res) => {
         });
         res.json({ success: true, token, user: { name: user.username, role: user.role, org_id: user.organization_id } });
     } catch (e) {
-        res.status(500).json({ error: e.message });
+        sendError(res, 500, 'Internal server error', e.message);
     }
 });
 
@@ -124,16 +146,23 @@ function broadcastData(data, org_id) {
 setInterval(() => clients.forEach(c => c.res.write('data: {"ping":true}\n\n')), 30000);
 
 // --- INGEST ---
-app.post('/api/ingest', verifyToken, async (req, res) => {
+app.post('/api/ingest', rateLimit('ingest', 120, 60000), verifyToken, async (req, res) => {
     try {
         const payloads = Array.isArray(req.body) ? req.body : [req.body];
-        if (payloads.length === 0) return res.status(400).json({ error: "Empty payload" });
+        if (payloads.length === 0) return sendError(res, 400, 'Empty payload');
+        if (payloads.length > 50) return sendError(res, 400, 'Batch size exceeds maximum of 50');
+
+        for (const p of payloads) {
+            if (p.node_id === undefined || p.node_id === null) {
+                return sendError(res, 400, 'node_id is required for each reading');
+            }
+        }
 
         const org_id = req.user.org_id || payloads[0].organization_id || 1;
         let insertedIds = [];
         
         for (const p of payloads) {
-            const { node_id, timer_slave_id, relay_no, ch_status, svf_rly_stat, sys_ok, system_on, plc_interlock, dp_interlock, ip3_interlock, plc_interlock_stat, dp_interlock_stat, ip3_interlock_stat, parallel_purge_mode, ch_open_1_16, ch_open_17_32, ch_open_33_48, ch_short_1_16, baud_rate, reserved, on_time_unit, on_time_lower_limit, on_time_higher_limit, off_time_unit, off_time_lower_limit, off_time_higher_limit, pause_time_unit, pause_time_lower_limit, pause_time_higher_limit, rssi, snr, timestamp, hardware_time } = p;
+            const { node_id, timer_slave_id, relay_no, ch_status, svf_rly_stat, sys_ok, system_on, plc_interlock, dp_interlock, ip3_interlock, plc_interlock_stat, dp_interlock_stat, ip3_interlock_stat, parallel_purge_mode, ch_open_1_16, ch_open_17_32, ch_open_33_48, ch_short_1_16, baud_rate, reserved, on_time_unit, on_time_lower_limit, on_time_higher_limit, off_time_unit, off_time_lower_limit, off_time_higher_limit, pause_time_unit, pause_time_lower_limit, pause_time_higher_limit, differential_pressure, temp_in, temp_out, pressure_header, particulate_matter, cleaning_status, rssi, snr, timestamp, hardware_time } = p;
             
             // Calculate true absolute time for offline buffered data
             let actualTime = new Date();
@@ -144,21 +173,30 @@ app.post('/api/ingest', verifyToken, async (req, res) => {
                 }
             }
             
-            const q = `INSERT INTO sensor_readings (organization_id, node_id, timer_slave_id, relay_no, ch_status, svf_rly_stat, sys_ok, system_on, plc_interlock, dp_interlock, ip3_interlock, plc_interlock_stat, dp_interlock_stat, ip3_interlock_stat, parallel_purge_mode, ch_open_1_16, ch_open_17_32, ch_open_33_48, ch_short_1_16, baud_rate, reserved, on_time_unit, on_time_lower_limit, on_time_higher_limit, off_time_unit, off_time_lower_limit, off_time_higher_limit, pause_time_unit, pause_time_lower_limit, pause_time_higher_limit, rssi, snr, timestamp, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34) RETURNING *`;
+            // Store the reconstructed Unix timestamp (not firmware boot-relative)
+            const actualUnixTimestamp = Math.floor(actualTime.getTime() / 1000);
+            
+            const q = `INSERT INTO sensor_readings (organization_id, facility_id, node_id, timer_slave_id, relay_no, ch_status, svf_rly_stat, sys_ok, system_on, plc_interlock, dp_interlock, ip3_interlock, plc_interlock_stat, dp_interlock_stat, ip3_interlock_stat, parallel_purge_mode, ch_open_1_16, ch_open_17_32, ch_open_33_48, ch_short_1_16, baud_rate, reserved, on_time_unit, on_time_lower_limit, on_time_higher_limit, off_time_unit, off_time_lower_limit, off_time_higher_limit, pause_time_unit, pause_time_lower_limit, pause_time_higher_limit, differential_pressure, temp_in, temp_out, pressure_header, particulate_matter, cleaning_status, rssi, snr, timestamp, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41) RETURNING *`;
             
             const v = [
                 org_id,
-                Number(node_id), Number(timer_slave_id) || 1, Number(relay_no) || 0, Number(ch_status) || 0,
-                Boolean(svf_rly_stat), Boolean(sys_ok), Boolean(system_on),
-                Boolean(plc_interlock), Boolean(dp_interlock), Boolean(ip3_interlock),
-                Boolean(plc_interlock_stat), Boolean(dp_interlock_stat), Boolean(ip3_interlock_stat),
-                Boolean(parallel_purge_mode),
-                Number(ch_open_1_16) || 0, Number(ch_open_17_32) || 0, Number(ch_open_33_48) || 0, Number(ch_short_1_16) || 0,
-                Number(baud_rate) || 9600, Number(reserved) || 0,
-                Number(on_time_unit) || 0, Number(on_time_lower_limit) || 0, Number(on_time_higher_limit) || 0,
-                Number(off_time_unit) || 0, Number(off_time_lower_limit) || 0, Number(off_time_higher_limit) || 0,
-                Number(pause_time_unit) || 0, Number(pause_time_lower_limit) || 0, Number(pause_time_higher_limit) || 0,
-                Number(rssi) || 0, Number(snr) || 0, Number(timestamp) || Math.floor(Date.now() / 1000),
+                toNum(p.facility_id, 1),
+                toNum(node_id),
+                toNum(timer_slave_id, 1),
+                toNum(relay_no, 0),
+                toNum(ch_status, 0),
+                toBool(svf_rly_stat), toBool(sys_ok), toBool(system_on),
+                toBool(plc_interlock), toBool(dp_interlock), toBool(ip3_interlock),
+                toBool(plc_interlock_stat), toBool(dp_interlock_stat), toBool(ip3_interlock_stat),
+                toBool(parallel_purge_mode),
+                toNum(ch_open_1_16, 0), toNum(ch_open_17_32, 0), toNum(ch_open_33_48, 0), toNum(ch_short_1_16, 0),
+                toNum(baud_rate, 9600), toNum(reserved, 0),
+                toNum(on_time_unit, 0), toNum(on_time_lower_limit, 0), toNum(on_time_higher_limit, 0),
+                toNum(off_time_unit, 0), toNum(off_time_lower_limit, 0), toNum(off_time_higher_limit, 0),
+                toNum(pause_time_unit, 0), toNum(pause_time_lower_limit, 0), toNum(pause_time_higher_limit, 0),
+                toNum(differential_pressure, 0), toNum(temp_in, 0), toNum(temp_out, 0),
+                toNum(pressure_header, 0), toNum(particulate_matter, 0), toNum(cleaning_status, 0),
+                toNum(rssi, 0), toNum(snr, 0), actualUnixTimestamp,
                 actualTime
             ];
             
@@ -176,7 +214,51 @@ app.post('/api/ingest', verifyToken, async (req, res) => {
             }
         }
         res.json({ success: true, count: insertedIds.length, ids: insertedIds });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { sendError(res, 500, 'Internal server error', e.message); }
+});
+
+// --- EMERGENCY HOLD (Event Logging Only) ---
+app.post('/api/emergency-hold', rateLimit('emergency', 10, 60000), verifyToken, async (req, res) => {
+    try {
+        const { node_id } = req.body;
+        const user = req.user;
+
+        if (!node_id) return sendError(res, 400, 'node_id is required');
+
+        console.log(`🚨 [EMERGENCY HOLD] User: ${user.username} | Node: ${node_id} | Org: ${user.org_id} | Time: ${new Date().toISOString()}`);
+
+        res.json({ success: true, message: 'Emergency hold event logged.' });
+    } catch (e) {
+        sendError(res, 500, 'Internal server error', e.message);
+    }
+});
+
+// --- FACILITIES ENDPOINTS ---
+app.get('/api/facilities', verifyToken, async (req, res) => {
+    try {
+        const facilities = await pool.query('SELECT * FROM facilities WHERE organization_id = $1 ORDER BY id', [req.user.org_id || 1]);
+        res.json({ success: true, facilities: facilities.rows });
+    } catch (e) { sendError(res, 500, 'Internal server error', e.message); }
+});
+
+// --- ADMIN ENDPOINTS ---
+app.get('/api/admin/users', verifyToken, async (req, res) => {
+    if (req.user.role !== 'admin') return sendError(res, 403, 'Admin access required');
+    try {
+        const users = await pool.query('SELECT id, username, email, role, organization_id FROM users WHERE organization_id = $1', [req.user.org_id]);
+        res.json({ success: true, users: users.rows });
+    } catch (e) { sendError(res, 500, 'Internal server error', e.message); }
+});
+
+app.post('/api/admin/users', verifyToken, async (req, res) => {
+    if (req.user.role !== 'admin') return sendError(res, 403, 'Admin access required');
+    const { username, email, password, role } = req.body;
+    try {
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(password, salt);
+        await pool.query('INSERT INTO users (username, email, password_hash, organization_id, role) VALUES ($1, $2, $3, $4, $5)', [username, email, hash, req.user.org_id, role || 'operator']);
+        res.json({ success: true, message: 'User created' });
+    } catch (e) { sendError(res, 500, 'Internal server error', e.message); }
 });
 
 // --- PREDICTIVE CRON ENDPOINT ---
@@ -190,6 +272,7 @@ app.get('/api/cron/predict', async (req, res) => {
 
     // Run asynchronously, don't block the request. Wrap in catch to prevent unhandled rejections.
     runPredictiveAnalysis().catch(err => console.error("[CRITICAL] Unhandled Predictive Engine Error:", err));
+    enforceDataRetention().catch(err => console.error("[CRITICAL] Unhandled Data Retention Error:", err));
     
     res.json({ success: true, message: "Predictive analysis sequence initiated" });
 });
@@ -201,10 +284,10 @@ app.get('/api/data', verifyToken, async (req, res) => {
         const r = await pool.query(`SELECT * FROM sensor_readings WHERE organization_id = $1 ORDER BY created_at DESC LIMIT 500`, [org_id]);
         const d = r.rows.map(row => ({ ...row, device_id: `Node-${row.node_id}` }));
         res.json({ success: true, data: d });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { sendError(res, 500, 'Internal server error', e.message); }
 });
 
-app.get('/api/export/:nodeId', verifyToken, async (req, res) => {
+app.get('/api/export/:nodeId', rateLimit('export', 10, 60000), verifyToken, async (req, res) => {
     try {
         const org_id = req.user.org_id || 1;
         const nodeId = req.params.nodeId.replace('Node-', '');
@@ -216,11 +299,11 @@ app.get('/api/export/:nodeId', verifyToken, async (req, res) => {
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', `attachment; filename="LOG_Node-${nodeId}_${Date.now()}.csv"`);
         res.send(csv);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { sendError(res, 500, 'Internal server error', e.message); }
 });
 
 // --- RAG KNOWLEDGE BASE UPLOAD ---
-app.post('/api/upload_knowledge', verifyToken, upload.single('document'), async (req, res) => {
+app.post('/api/upload_knowledge', rateLimit('upload', 5, 60000), verifyToken, upload.single('document'), async (req, res) => {
     try {
         if (!req.file) throw new Error("No file received");
         const org_id = req.user.org_id || 1;
@@ -236,15 +319,16 @@ app.post('/api/upload_knowledge', verifyToken, upload.single('document'), async 
         });
         console.log(`✅ Uploaded to Gemini: ${uploadResult.uri}`);
 
-        const insertQ = `INSERT INTO knowledge_files (organization_id, original_name, local_path, mime_type, gemini_uri, uploaded_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, original_name`;
+        const fileBuffer = fs.readFileSync(localPath);
+        const insertQ = `INSERT INTO knowledge_files (organization_id, original_name, local_path, mime_type, gemini_uri, uploaded_at, file_data) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, original_name`;
         const uploadedAt = Math.floor(Date.now() / 1000);
 
-        await pool.query(insertQ, [org_id, req.file.originalname, localPath, mimeType, uploadResult.uri, uploadedAt]);
+        await pool.query(insertQ, [org_id, req.file.originalname, localPath, mimeType, uploadResult.uri, uploadedAt, fileBuffer]);
 
         res.json({ success: true, message: 'Document added to AI context successfully!' });
     } catch (e) {
         console.error(e);
-        res.status(500).json({ error: e.message });
+        sendError(res, 500, 'Internal server error', e.message);
     }
 });
 
@@ -254,11 +338,11 @@ app.get('/api/knowledge', verifyToken, async (req, res) => {
         const org_id = req.user.org_id || 1;
         const r = await pool.query('SELECT original_name, uploaded_at FROM knowledge_files WHERE organization_id = $1 ORDER BY uploaded_at DESC', [org_id]);
         res.json({ success: true, files: r.rows });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { sendError(res, 500, 'Internal server error', e.message); }
 });
 
 // --- HYBRID AI ENDPOINT (GEMINI) ---
-app.post('/api/chat', verifyToken, async (req, res) => {
+app.post('/api/chat', rateLimit('chat', 20, 60000), verifyToken, async (req, res) => {
     const { message, contextData } = req.body;
     const safeMessage = message || '';
     const lowerMsg = safeMessage.toLowerCase();
@@ -282,6 +366,12 @@ app.post('/api/chat', verifyToken, async (req, res) => {
             let activeUri = row.gemini_uri;
 
             if ((nowStamp - row.uploaded_at) > EXPIRY_SECONDS) {
+                if (!fs.existsSync(row.local_path) && row.file_data) {
+                    const dir = path.dirname(row.local_path);
+                    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+                    fs.writeFileSync(row.local_path, row.file_data);
+                }
+
                 if (fs.existsSync(row.local_path)) {
                     console.log(`🔄 Refreshing expiring Gemini URI for ${row.original_name}...`);
                     try {
@@ -336,6 +426,22 @@ app.post('/api/chat', verifyToken, async (req, res) => {
     } catch (err) {
         console.error("Gemini Error:", err);
         res.status(500).json({ reply: "⚠️ Gemini Edge AI Error: " + err.message });
+    }
+});
+
+// --- HEALTH CHECK ---
+app.get('/api/health', async (req, res) => {
+    try {
+        const dbResult = await pool.query('SELECT NOW()');
+        res.json({
+            success: true,
+            status: 'healthy',
+            timestamp: dbResult.rows[0].now,
+            uptime: process.uptime(),
+            version: require('./package.json').version
+        });
+    } catch (e) {
+        sendError(res, 503, 'Database connection failed', e.message);
     }
 });
 

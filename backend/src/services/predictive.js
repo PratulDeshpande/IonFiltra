@@ -47,7 +47,9 @@ async function runPredictiveAnalysis() {
                 Telemetry Data:
                 ${JSON.stringify(samples.map(s => ({
                     time: s.created_at, node: s.node_id, sys_ok: s.sys_ok, 
-                    rssi: s.rssi, faults: [s.ch_open_1_16, s.ch_open_17_32, s.ch_open_33_48, s.ch_short_1_16]
+                    rssi: s.rssi, faults: [s.ch_open_1_16, s.ch_open_17_32, s.ch_open_33_48, s.ch_short_1_16],
+                    dp: s.differential_pressure, pm: s.particulate_matter,
+                    temp_in: s.temp_in, temp_out: s.temp_out, cleaning: s.cleaning_status
                 })))}
             `;
 

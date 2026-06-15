@@ -68,6 +68,25 @@ const NodeCard = ({ nodeId, data, isPlaceholder }) => {
     const safeData = Array.isArray(data) ? data : [];
     const latest = safeData.length > 0 ? safeData[safeData.length - 1] : {};
 
+    const lastSeen = latest.created_at ? new Date(latest.created_at) : null;
+    let timeSince = "Offline";
+    let isOnline = false;
+
+    if (lastSeen) {
+        const diffMs = Date.now() - lastSeen.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        if (diffMins < 2) {
+            timeSince = "Just now";
+            isOnline = true;
+        } else if (diffMins < 60) {
+            timeSince = `${diffMins} min ago`;
+            isOnline = diffMins < 5;
+        } else {
+            const diffHours = Math.floor(diffMins / 60);
+            timeSince = `${diffHours} hr ago`;
+        }
+    }
+
     // Determine status string
     const statusLabels = {0: "OFF", 1: "ON", 2: "PAUSE"};
     const chStatusStr = statusLabels[latest.ch_status] || "UNKNOWN";
@@ -81,7 +100,8 @@ const NodeCard = ({ nodeId, data, isPlaceholder }) => {
         if (safeData.length === 0) return alert("System currently in standby.");
         try {
             const response = await fetch(`${API_BASE_URL}/api/export/${nodeId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { 'Authorization': `Bearer ${token}` },
+                credentials: 'include'
             });
             if (!response.ok) throw new Error("Export failed");
 
@@ -98,14 +118,44 @@ const NodeCard = ({ nodeId, data, isPlaceholder }) => {
         }
     };
 
+    const handleEmergencyHold = async () => {
+        if (!window.confirm(`⚠️ Are you sure you want to trigger EMERGENCY HOLD for ${nodeId}? This will log a critical event.`)) return;
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/emergency-hold`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
+                credentials: 'include',
+                body: JSON.stringify({ node_id: nodeId.replace('Node-', '') })
+            });
+            const data = await response.json();
+            if (data.success) {
+                alert(`✅ Emergency hold logged for ${nodeId}`);
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (e) {
+            alert("Error triggering emergency hold: " + e.message);
+        }
+    };
+
     return (
         <div className={`rounded-3xl overflow-hidden border shadow-xl flex flex-col ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
             <div className={`px-4 sm:px-6 py-3 sm:py-4 border-b flex flex-wrap gap-3 justify-between items-center ${theme === 'dark' ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                     <div className={`p-1.5 sm:p-2 rounded-lg text-white shadow-sm ${isPlaceholder ? 'bg-slate-500' : 'bg-blue-600'}`}><Server size={18} className="sm:w-5 sm:h-5"/></div>
                     <div>
-                        <h3 className="font-bold text-base sm:text-lg leading-tight">Node {nodeId}</h3>
-                        <p className="text-[10px] sm:text-xs opacity-60">Timer Slave: {latest.timer_slave_id || 'N/A'}</p>
+                        <h3 className="font-bold text-base sm:text-lg leading-tight">{nodeId.includes('Node') ? nodeId : `Node ${nodeId}`}</h3>
+                        <div className="flex items-center gap-2">
+                            <p className="text-[10px] sm:text-xs opacity-60">Timer Slave: {latest.timer_slave_id || 'N/A'}</p>
+                            <span className="opacity-30 text-[10px]">•</span>
+                            <div className="flex items-center gap-1">
+                                <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-slate-500'}`}></div>
+                                <p className="text-[10px] sm:text-xs opacity-60">{timeSince}</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div className="flex bg-slate-800/10 rounded-lg p-1 shrink-0 z-10 relative overflow-x-auto custom-scrollbar">
@@ -236,7 +286,7 @@ const NodeCard = ({ nodeId, data, isPlaceholder }) => {
 
             <div className={`p-3 sm:p-4 border-t grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mt-auto ${theme === 'dark' ? 'border-slate-800' : 'border-slate-200'}`}>
                 <button onClick={handleDownload} className={`flex items-center justify-center gap-2 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition shadow-sm ${theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'}`}><Download size={16} /> Logs Export</button>
-                <button className="flex items-center justify-center gap-2 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-bold bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition shadow-sm border border-red-500/20 hover:border-transparent"><Power size={16} /> EMERGENCY HOLD</button>
+                <button onClick={handleEmergencyHold} className="flex items-center justify-center gap-2 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-bold bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition shadow-sm border border-red-500/20 hover:border-transparent"><Power size={16} /> EMERGENCY HOLD</button>
             </div>
         </div>
     );

@@ -85,6 +85,12 @@ typedef struct {
   uint8_t pause_time_unit;
   uint16_t pause_time_lower_limit;
   uint16_t pause_time_higher_limit;
+  float differential_pressure;
+  float temp_in;
+  float temp_out;
+  float pressure_header;
+  float particulate_matter;
+  uint16_t cleaning_status;
 } SensorPayload;
 #pragma pack(pop)
 
@@ -123,13 +129,12 @@ SystemState currentState = MESH_STATE_ADDRESSING;
 
 unsigned long lastPollTime = 0;
 const unsigned long POLL_INTERVAL = 10000;
-int node_success = 0;
 const unsigned long RESPONSE_TIMEOUT = 3000;
 
 /* ---------- FUNCTION DECLARATIONS ---------- */
 void setupGSM();
 bool sendAT(String cmd, const char* expected, unsigned long timeout);
-void parseSerialCommand(String cmd);
+
 void pushToBuffer(SensorReading reading);
 void flushBufferToServer();
 bool uploadBulkJson(String jsonString);
@@ -313,6 +318,13 @@ void flushBufferToServer() {
         obj["pause_time_unit"] = r.data.pause_time_unit;
         obj["pause_time_lower_limit"] = r.data.pause_time_lower_limit;
         obj["pause_time_higher_limit"] = r.data.pause_time_higher_limit;
+        
+        obj["differential_pressure"] = r.data.differential_pressure;
+        obj["temp_in"] = r.data.temp_in;
+        obj["temp_out"] = r.data.temp_out;
+        obj["pressure_header"] = r.data.pressure_header;
+        obj["particulate_matter"] = r.data.particulate_matter;
+        obj["cleaning_status"] = r.data.cleaning_status;
         obj["rssi"] = r.rssi;
         obj["snr"] = r.snr;
         obj["timestamp"] = r.timestamp;
@@ -459,6 +471,7 @@ void LoRa_reqaddress() {
 
   if (isDuplicate(hdr.src, hdr.msg_id)) {
     while (LoRa.available()) LoRa.read();
+    return;
   }
 
   int i = 0;
@@ -520,11 +533,10 @@ void LoRa_Polling() {
     for(int i = 0; i < nodeCount; i++) {
       uint8_t nodeId = nodeIdArray[i];
       if (sendDataRequest(nodeId)) {
-        if (waitForResponse(nodeId)) node_success += 1;
+        waitForResponse(nodeId);
       }
       delay(500); 
     }
-    node_success = 0;
   }
 }
 

@@ -9,6 +9,7 @@ export const AppProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(null);
     const [selectedLocation, setSelectedLocation] = useState(null);
+    const [facilities, setFacilities] = useState([]);
     const [nodeDataMap, setNodeDataMap] = useState({});
     const [isConnected, setIsConnected] = useState(false);
     const [isInitializing, setIsInitializing] = useState(true);
@@ -41,7 +42,8 @@ export const AppProvider = ({ children }) => {
 
             try {
                 const res = await fetch(`${API_BASE_URL}/api/me`, { 
-                    headers: { 'Authorization': `Bearer ${storedToken}` } 
+                    headers: { 'Authorization': `Bearer ${storedToken}` },
+                    credentials: 'include'
                 });
                 const data = await res.json();
                 if (data.success && data.user) {
@@ -60,6 +62,23 @@ export const AppProvider = ({ children }) => {
         checkAuth();
     }, []);
 
+    const fetchFacilities = async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/facilities`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+                credentials: 'include'
+            });
+            const data = await res.json();
+            if (data.success) setFacilities(data.facilities);
+        } catch (e) { console.error(e); }
+    };
+
+    useEffect(() => {
+        if (view === 'location' && token) {
+            fetchFacilities();
+        }
+    }, [view, token]);
+
     // Fetch initial history and streaming when entering dashboard
     useEffect(() => {
         if (view !== 'dashboard' || !user || !token) {
@@ -72,7 +91,8 @@ export const AppProvider = ({ children }) => {
 
         // Fetch History
         fetch(`${API_BASE_URL}/api/data`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${token}` },
+            credentials: 'include'
         })
             .then(res => res.json())
             .then(json => {
@@ -88,6 +108,9 @@ export const AppProvider = ({ children }) => {
             }).catch(err => console.error("Initial data load error:", err));
 
         // Connect SSE with query token
+        // NOTE: EventSource API does not support custom headers.
+        // The JWT is passed as a query parameter, which exposes it in server logs.
+        // This is a known limitation. Mitigation: JWT expires in 12h, HTTPS encrypts in transit.
         const eventSource = new EventSource(`${API_BASE_URL}/api/stream?token=${token}`);
         eventSourceRef.current = eventSource;
 
@@ -120,6 +143,7 @@ export const AppProvider = ({ children }) => {
             const res = await fetch(`${API_BASE_URL}/api/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({ username, password })
             });
             const data = await res.json();
@@ -142,7 +166,8 @@ export const AppProvider = ({ children }) => {
         try {
             await fetch(`${API_BASE_URL}/api/logout`, { 
                 method: 'POST', 
-                headers: { 'Authorization': `Bearer ${token}` } 
+                headers: { 'Authorization': `Bearer ${token}` },
+                credentials: 'include'
             });
         } catch (e) { console.error(e); }
         
@@ -156,11 +181,11 @@ export const AppProvider = ({ children }) => {
 
     const updateView = (newView) => setView(newView);
     const selectLocation = (loc) => {
-        if (loc === 'Pune') {
-            setSelectedLocation(loc);
+        if (loc.status === 'online') {
+            setSelectedLocation(loc.name);
             setView('dashboard');
         } else {
-            alert("⚠️ Connection offline for this location.");
+            alert(`⚠️ Connection offline for ${loc.name}.`);
         }
     };
 
@@ -170,6 +195,7 @@ export const AppProvider = ({ children }) => {
             view, updateView,
             user, token, login, logout,
             selectedLocation, selectLocation,
+            facilities,
             nodeDataMap, isConnected,
             isInitializing,
             API_BASE_URL

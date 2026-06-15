@@ -56,6 +56,17 @@ pool.query('SELECT NOW()', async (err, res) => {
             );
       `);
 
+      // Auto-build Facilities table
+      await pool.query(`
+            CREATE TABLE IF NOT EXISTS facilities (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                status VARCHAR(50) DEFAULT 'offline',
+                organization_id INTEGER REFERENCES organizations(id),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+      `);
+
       // Auto-build Users table
       await pool.query(`
             CREATE TABLE IF NOT EXISTS users (
@@ -74,6 +85,7 @@ pool.query('SELECT NOW()', async (err, res) => {
             CREATE TABLE IF NOT EXISTS sensor_readings (
                 id SERIAL PRIMARY KEY,
                 organization_id INTEGER REFERENCES organizations(id),
+                facility_id INTEGER REFERENCES facilities(id),
                 node_id INTEGER NOT NULL,
                 timer_slave_id INTEGER,
                 relay_no INTEGER,
@@ -103,6 +115,12 @@ pool.query('SELECT NOW()', async (err, res) => {
                 pause_time_unit INTEGER,
                 pause_time_lower_limit INTEGER,
                 pause_time_higher_limit INTEGER,
+                differential_pressure NUMERIC DEFAULT 0,
+                temp_in NUMERIC DEFAULT 0,
+                temp_out NUMERIC DEFAULT 0,
+                pressure_header NUMERIC DEFAULT 0,
+                particulate_matter NUMERIC DEFAULT 0,
+                cleaning_status INTEGER DEFAULT 0,
                 rssi INTEGER DEFAULT 0,
                 snr NUMERIC DEFAULT 0,
                 timestamp BIGINT,
@@ -120,7 +138,8 @@ pool.query('SELECT NOW()', async (err, res) => {
                 local_path TEXT,
                 mime_type TEXT,
                 gemini_uri TEXT,
-                uploaded_at BIGINT
+                uploaded_at BIGINT,
+                file_data BYTEA
             );
         `);
       console.log('📂 Knowledge Base Table ready.');

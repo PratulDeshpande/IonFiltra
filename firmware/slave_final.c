@@ -81,6 +81,12 @@ typedef struct {
   uint8_t pause_time_unit;
   uint16_t pause_time_lower_limit;
   uint16_t pause_time_higher_limit;
+  float differential_pressure;
+  float temp_in;
+  float temp_out;
+  float pressure_header;
+  float particulate_matter;
+  uint16_t cleaning_status;
 } SensorPayload;
 #pragma pack(pop)
 
@@ -119,6 +125,7 @@ uint16_t on_time_unit = 0, on_time_lower = 0, on_time_higher = 0;
 uint16_t off_time_unit = 0, off_time_lower = 0, off_time_higher = 0;
 uint16_t pause_time_unit = 0, pause_lower = 0, pause_higher = 0;
 uint16_t plc_interlock = 0, dp_interlock = 0, ip3_interlock = 0;
+uint8_t plc_interlock_stat = 0, dp_interlock_stat = 0, ip3_interlock_stat = 0;
 
 uint32_t last_modbus_poll_time = 0;
 
@@ -189,8 +196,9 @@ int main(void)
           off_time_unit = 0; off_time_lower = 0; off_time_higher = 0;
           pause_time_unit = 0; pause_lower = 0; pause_higher = 0;
           plc_interlock = 0; dp_interlock = 0; ip3_interlock = 0;
+          plc_interlock_stat = 0; dp_interlock_stat = 0; ip3_interlock_stat = 0;
 
-          Modbus_Read_Sensors(); 
+          Modbus_Read_Sensors();
       }
 
       // 2. LORA MESH STATE MACHINE
@@ -416,10 +424,33 @@ int Modbus_Read_Sensors(void)
                 pause_lower     = (rx_frame2[31] << 8) | rx_frame2[32];   
                 pause_higher    = (rx_frame2[35] << 8) | rx_frame2[36];   
 
-                plc_interlock   = (rx_frame2[39] << 8) | rx_frame2[40];   
-                dp_interlock    = (rx_frame2[43] << 8) | rx_frame2[44];   
-                ip3_interlock   = (rx_frame2[51] << 8) | rx_frame2[52];   
+                plc_interlock_stat = (rx_frame2[39] << 8) | rx_frame2[40];
+                dp_interlock_stat  = (rx_frame2[43] << 8) | rx_frame2[44];
+                ip3_interlock_stat = (rx_frame2[51] << 8) | rx_frame2[52];
+
                 status = 1;
+            }
+        }
+    }
+
+    HAL_Delay(20); 
+
+    // POLL 3
+    uint8_t tx_frame3[8] = {0x01, 0x03, 0x00, 0x9F, 0x00, 0x03, 0x00, 0x00};
+    uint16_t tx_crc3 = Modbus_CRC16(tx_frame3, 6);
+    tx_frame3[6] = tx_crc3 & 0xFF;
+    tx_frame3[7] = (tx_crc3 >> 8) & 0xFF;
+
+    __HAL_UART_FLUSH_DRREGISTER(&huart1);
+
+    if (HAL_UART_Transmit(&huart1, tx_frame3, 8, 100) == HAL_OK) {
+        uint8_t rx_frame3[11];
+        if (HAL_UART_Receive(&huart1, rx_frame3, 11, 200) == HAL_OK) {
+            uint16_t rx_crc3 = Modbus_CRC16(rx_frame3, 9);
+            if (rx_frame3[9] == (rx_crc3 & 0xFF) && rx_frame3[10] == ((rx_crc3 >> 8) & 0xFF)) {
+                plc_interlock = (rx_frame3[3] << 8) | rx_frame3[4];
+                dp_interlock  = (rx_frame3[5] << 8) | rx_frame3[6];
+                ip3_interlock = (rx_frame3[7] << 8) | rx_frame3[8];
             }
         }
     }
@@ -464,10 +495,22 @@ void Process_Registered_State(void)
             outData.pause_time_lower_limit = pause_lower;
             outData.pause_time_higher_limit = pause_higher;
 
-            // The STM32 reads these interlocks from Modbus
-            outData.plc_interlock_stat = (uint8_t)plc_interlock;
-            outData.dp_interlock_stat = (uint8_t)dp_interlock;
-            outData.ip3_interlock_stat = (uint8_t)ip3_interlock;
+            // The STM32 reads these interlock configs from Modbus
+            outData.plc_interlock = (uint8_t)plc_interlock;
+            outData.dp_interlock = (uint8_t)dp_interlock;
+            outData.ip3_interlock = (uint8_t)ip3_interlock;
+            
+            outData.plc_interlock_stat = plc_interlock_stat;
+            outData.dp_interlock_stat = dp_interlock_stat;
+            outData.ip3_interlock_stat = ip3_interlock_stat;
+            
+            // Analog Modbus data
+            outData.differential_pressure = modbus_dp;
+            outData.temp_in = modbus_t_in;
+            outData.temp_out = modbus_t_out;
+            outData.pressure_header = modbus_p_header;
+            outData.particulate_matter = modbus_pm;
+            outData.cleaning_status = (uint16_t)modbus_cleaning;
 
             // Transmit the struct as raw bytes
             Send_Mesh_Packet(PKT_SENSOR_DATA, MASTER_ID, 0, (const uint8_t*)&outData, sizeof(SensorPayload));

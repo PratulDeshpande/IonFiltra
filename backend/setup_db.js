@@ -5,13 +5,11 @@ async function setup() {
     console.log("🔨 SETTING UP DATABASE WITH RBAC...");
 
     try {
-        const dropSQL = `
-            DROP TABLE IF EXISTS sensor_readings CASCADE;
-            DROP TABLE IF EXISTS knowledge_files CASCADE;
-            DROP TABLE IF EXISTS users CASCADE;
-            DROP TABLE IF EXISTS organizations CASCADE;
-        `;
-        await pool.query(dropSQL);
+        await pool.query('DROP TABLE IF EXISTS sensor_readings CASCADE');
+        await pool.query('DROP TABLE IF EXISTS knowledge_files CASCADE');
+        await pool.query('DROP TABLE IF EXISTS users CASCADE');
+        await pool.query('DROP TABLE IF EXISTS facilities CASCADE');
+        await pool.query('DROP TABLE IF EXISTS organizations CASCADE');
         
         const createOrgsSQL = `
             CREATE TABLE IF NOT EXISTS organizations (
@@ -21,6 +19,17 @@ async function setup() {
             );
         `;
         await pool.query(createOrgsSQL);
+
+        const createFacilitiesSQL = `
+            CREATE TABLE IF NOT EXISTS facilities (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                status VARCHAR(50) DEFAULT 'offline',
+                organization_id INTEGER REFERENCES organizations(id),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `;
+        await pool.query(createFacilitiesSQL);
 
         const createUsersSQL = `
             CREATE TABLE IF NOT EXISTS users (
@@ -39,6 +48,7 @@ async function setup() {
             CREATE TABLE IF NOT EXISTS sensor_readings (
                 id SERIAL PRIMARY KEY,
                 organization_id INTEGER REFERENCES organizations(id),
+                facility_id INTEGER REFERENCES facilities(id),
                 node_id INTEGER NOT NULL,
                 timer_slave_id INTEGER,
                 relay_no INTEGER,
@@ -68,10 +78,16 @@ async function setup() {
                 pause_time_unit INTEGER,
                 pause_time_lower_limit INTEGER,
                 pause_time_higher_limit INTEGER,
+                differential_pressure NUMERIC DEFAULT 0,
+                temp_in NUMERIC DEFAULT 0,
+                temp_out NUMERIC DEFAULT 0,
+                pressure_header NUMERIC DEFAULT 0,
+                particulate_matter NUMERIC DEFAULT 0,
+                cleaning_status INTEGER DEFAULT 0,
                 rssi INTEGER DEFAULT 0,
-                snr FLOAT,
+                snr NUMERIC DEFAULT 0,
                 timestamp BIGINT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
         `;
         await pool.query(createSensorSQL);
@@ -84,7 +100,8 @@ async function setup() {
                 local_path TEXT,
                 mime_type TEXT,
                 gemini_uri TEXT,
-                uploaded_at BIGINT
+                uploaded_at BIGINT,
+                file_data BYTEA
             );
         `;
         await pool.query(createKnowledgeSQL);
@@ -102,6 +119,8 @@ async function setup() {
         // Insert Default Org & Admin
         const defaultOrg = await pool.query(`INSERT INTO organizations (name) VALUES ('Global Industries') RETURNING id`);
         const orgId = defaultOrg.rows[0].id;
+
+        await pool.query(`INSERT INTO facilities (name, status, organization_id) VALUES ('Pune HQ', 'online', $1), ('Mumbai Plant', 'offline', $1), ('Nashik Hub', 'offline', $1)`, [orgId]);
 
         const salt = await bcrypt.genSalt(10);
         const hash = await bcrypt.hash('admin', salt);

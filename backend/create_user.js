@@ -48,7 +48,7 @@ async function createUser() {
         console.log("✅ User created successfully!");
         console.log(`- Username: ${username}`);
         console.log(`- Email: ${email}`);
-        console.log(`- Password: ${password}`);
+        console.log(`- Password: ********** (hidden)`);
         console.log(`- Role: ${role}`);
         console.log(`- Organization ID: ${orgId}`);
         process.exit(0);
